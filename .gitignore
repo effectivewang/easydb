@@ -1,0 +1,31 @@
+# Bazel workspace specific
+/bazel-*
+/bazel-bin
+/bazel-genfiles
+/bazel-out
+/bazel-testlogs
+/bazel-workspace
+
+# Bazel symlinks
+bazel-*
+MODULE.bazel.*
+
+# Ignore all bazel-* symlinks. There are more than one.
+/bazel-*
+
+# Ignore Bazel build output
+**/BUILD.bazel.log
+
+# Ignore IDE specific files that Bazel might generate
+.project
+.classpath
+.settings/
+*.iml
+.idea/
+
+# Ignore Bazel's internal directory
+.bazel/
+
+# Ignore output directories
+out/
+bin/
