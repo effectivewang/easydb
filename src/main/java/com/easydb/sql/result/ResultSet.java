@@ -20,6 +20,7 @@ public class ResultSet implements Iterable<ResultSet.Row> {
     public ResultSet(List<Column> columns, List<Row> rows) {
         this.columns = Collections.unmodifiableList(new ArrayList<>(columns));
         this.rows = Collections.unmodifiableList(new ArrayList<>(rows));
+
     }
 
     public List<Column> getColumns() {
@@ -60,11 +61,11 @@ public class ResultSet implements Iterable<ResultSet.Row> {
             .map(Column::name)
             .reduce((a, b) -> a + "," + b)
             .orElse(""))
-            .append("\n");
+            .append(System.lineSeparator());
 
         // Add rows
         for (Row row : rows) {
-            csv.append(row.toCsv()).append("\n");
+            csv.append(formatRowAsCsv(row)).append(System.lineSeparator());
         }
 
         return csv.toString();
@@ -78,7 +79,7 @@ public class ResultSet implements Iterable<ResultSet.Row> {
         json.append("[\n");
         
         for (int i = 0; i < rows.size(); i++) {
-            json.append("  ").append(rows.get(i).toJson());
+            json.append("  ").append(formatRowAsJson(rows.get(i)));
             if (i < rows.size() - 1) {
                 json.append(",");
             }
@@ -87,6 +88,91 @@ public class ResultSet implements Iterable<ResultSet.Row> {
         
         json.append("]");
         return json.toString();
+    }
+
+    private String formatRowAsJson(Row row) {
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        for (int i = 0; i < columns.size(); i++) {
+            Column column = columns.get(i);
+            if (i > 0) {
+                json.append(", ");
+            }
+            json.append("\"").append(escapeJson(column.name())).append("\": ");
+            json.append(formatValueAsJson(row.get(i), column.type()));
+        }
+        json.append("}");
+        return json.toString();
+    }
+
+    private String formatRowAsCsv(Row row) {
+        StringBuilder csv = new StringBuilder();
+        for (int i = 0; i < columns.size(); i++) {
+            if (i > 0) {
+                csv.append(",");
+            }
+            csv.append(formatValueAsCsv(row.get(i), columns.get(i).type()));
+        }
+        return csv.toString();
+    }
+
+    private String formatValueAsJson(Object value, DataType type) {
+        if (value == null) {
+            return "null";
+        }
+
+        switch (type) {
+            case STRING:
+                return "\"" + escapeJson(value.toString()) + "\"";
+            case DATE:
+                return "\"" + ((LocalDate) value).format(DATE_FORMATTER) + "\"";
+            case DATETIME:
+                return "\"" + ((LocalDateTime) value).format(DATETIME_FORMATTER) + "\"";
+            case BYTES:
+                return "\"" + Base64.getEncoder().encodeToString((byte[]) value) + "\"";
+            case BOOLEAN:
+            case INTEGER:
+            case LONG:
+            case DOUBLE:
+            case DECIMAL:
+                return value.toString();
+            default:
+                throw new IllegalStateException("Unsupported type: " + type);
+        }
+    }
+
+    private String formatValueAsCsv(Object value, DataType type) {
+        if (value == null) {
+            return "";
+        }
+
+        String formatted = switch (type) {
+            case STRING -> escapeQuotes(value.toString());
+            case DATE -> ((LocalDate) value).format(DATE_FORMATTER);
+            case DATETIME -> ((LocalDateTime) value).format(DATETIME_FORMATTER);
+            case BYTES -> Base64.getEncoder().encodeToString((byte[]) value);
+            default -> value.toString();
+        };
+
+        // Quote values that contain commas, quotes, or newlines
+        if (formatted.contains(",") || formatted.contains("\"") || formatted.contains("\n") || formatted.contains("\r")) {
+            // For CSV, we don't escape newlines, we just wrap the whole value in quotes
+            return "\"" + formatted + "\"";
+        }
+        return formatted;
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
+    }
+
+    private String escapeQuotes(String value) {
+        // For CSV, double quotes are escaped by doubling them
+        return value.replace("\"", "\"\"");
     }
 
     /**
@@ -181,97 +267,9 @@ public class ResultSet implements Iterable<ResultSet.Row> {
             return get(columnName, byte[].class);
         }
 
-        /**
-         * Convert row to JSON object format.
-         */
-        public String toJson() {
-            StringBuilder json = new StringBuilder();
-            json.append("{");
-            
-            for (int i = 0; i < columns.size(); i++) {
-                Column column = columns.get(i);
-                if (i > 0) {
-                    json.append(", ");
-                }
-                json.append("\"").append(escapeJson(column.name())).append("\": ");
-                json.append(formatValueAsJson(values[i], column.type()));
-            }
-            
-            json.append("}");
-            return json.toString();
-        }
-
-        /**
-         * Convert row to CSV format.
-         */
-        public String toCsv() {
-            StringBuilder csv = new StringBuilder();
-            
-            for (int i = 0; i < values.length; i++) {
-                if (i > 0) {
-                    csv.append(",");
-                }
-                csv.append(formatValueAsCsv(values[i], columns.get(i).type()));
-            }
-            
-            return csv.toString();
-        }
-
-        private String formatValueAsJson(Object value, DataType type) {
-            if (value == null) {
-                return "null";
-            }
-
-            switch (type) {
-                case STRING:
-                    return "\"" + escapeJson(value.toString()) + "\"";
-                case DATE:
-                    return "\"" + ((LocalDate) value).format(DATE_FORMATTER) + "\"";
-                case DATETIME:
-                    return "\"" + ((LocalDateTime) value).format(DATETIME_FORMATTER) + "\"";
-                case BYTES:
-                    return "\"" + Base64.getEncoder().encodeToString((byte[]) value) + "\"";
-                case BOOLEAN:
-                case INTEGER:
-                case LONG:
-                case DOUBLE:
-                case DECIMAL:
-                    return value.toString();
-                default:
-                    throw new IllegalStateException("Unsupported type: " + type);
-            }
-        }
-
-        private String formatValueAsCsv(Object value, DataType type) {
-            if (value == null) {
-                return "";
-            }
-
-            String formatted = switch (type) {
-                case STRING -> escapeQuotes(value.toString());
-                case DATE -> ((LocalDate) value).format(DATE_FORMATTER);
-                case DATETIME -> ((LocalDateTime) value).format(DATETIME_FORMATTER);
-                case BYTES -> Base64.getEncoder().encodeToString((byte[]) value);
-                default -> value.toString();
-            };
-
-            // Quote values that contain commas or quotes
-            if (formatted.contains(",") || formatted.contains("\"") || formatted.contains("\n")) {
-                return "\"" + formatted + "\"";
-            }
-            return formatted;
-        }
-
-        private String escapeJson(String value) {
-            return value.replace("\\", "\\\\")
-                       .replace("\"", "\\\"")
-                       .replace("\n", "\\n")
-                       .replace("\r", "\\r")
-                       .replace("\t", "\\t");
-        }
-
-        private String escapeQuotes(String value) {
-            return value.replace("\"", "\"\"");
+        @Override
+        public String toString() {
+            return formatRowAsJson(this);
         }
     }
 
@@ -281,19 +279,21 @@ public class ResultSet implements Iterable<ResultSet.Row> {
     public static class Builder {
         private final List<Column> columns = new ArrayList<>();
         private final List<Row> rows = new ArrayList<>();
-        private final ResultSet resultSet;
+        private ResultSet resultSet;
 
         public Builder() {
-            this.resultSet = new ResultSet(columns, rows);
         }
 
         public Builder addColumn(String name, DataType type, boolean nullable) {
-            columns.add(new Column.Builder()
-                .name(name)
-                .type(type)
-                .nullable(nullable)
-                .position(columns.size())
-                .build());
+            columns.add(new Column(
+                name,
+                type,
+                nullable,
+                false, // primaryKey
+                false, // unique
+                null,  // defaultValue
+                columns.size() // position
+            ));
             return this;
         }
 
@@ -303,12 +303,15 @@ public class ResultSet implements Iterable<ResultSet.Row> {
                     "Value count doesn't match column count. Expected: " + 
                     columns.size() + ", Got: " + values.length);
             }
-            rows.add(resultSet.new Row(values));
+            if (resultSet == null) {
+                resultSet = new ResultSet(columns, rows);
+            }
+            rows.add(resultSet.new Row(values.clone()));
             return this;
         }
 
         public ResultSet build() {
-            return new ResultSet(columns, rows);
+            return new ResultSet(columns, new ArrayList<>(rows));
         }
     }
 } 

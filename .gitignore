@@ -22,6 +22,8 @@ MODULE.bazel.*
 .settings/
 *.iml
 .idea/
+.vscode/
+.eclipse/
 
 # Ignore Bazel's internal directory
 .bazel/
