@@ -1,48 +1,42 @@
 package com.easydb.storage;
 
+import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.metadata.IndexMetadata;
+import com.easydb.storage.transaction.Transaction;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.nio.ByteBuffer;
 
 /**
  * Interface for storage operations in EasyDB.
  */
 public interface Storage {
     /**
-     * Write data to storage.
-     *
-     * @param key The key to write
-     * @param value The value to write
-     * @return A future that completes when the write is done
+     * Creates a new table with the specified metadata.
      */
-    CompletableFuture<Void> write(ByteBuffer key, ByteBuffer value);
+    CompletableFuture<Void> createTable(TableMetadata metadata);
 
     /**
-     * Read data from storage.
-     *
-     * @param key The key to read
-     * @return A future that completes with the value
+     * Creates a new index with the specified metadata.
      */
-    CompletableFuture<ByteBuffer> read(ByteBuffer key);
+    CompletableFuture<Void> createIndex(IndexMetadata metadata);
 
     /**
-     * Delete data from storage.
-     *
-     * @param key The key to delete
-     * @return A future that completes when the delete is done
+     * Inserts a new tuple into storage.
      */
-    CompletableFuture<Void> delete(ByteBuffer key);
+    CompletableFuture<Void> insertTuple(Tuple tuple);
 
     /**
-     * Flush all pending writes to disk.
-     *
-     * @return A future that completes when the flush is done
+     * Finds tuples matching the specified conditions.
      */
-    CompletableFuture<Void> flush();
+    CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions);
 
     /**
-     * Close the storage.
-     *
-     * @return A future that completes when the close is done
+     * Retrieves metadata for the specified table.
      */
-    CompletableFuture<Void> close();
+    CompletableFuture<TableMetadata> getTableMetadata(String tableName);
+
+    /**
+     * Begins a new transaction.
+     */
+    CompletableFuture<Transaction> beginTransaction();
 } 

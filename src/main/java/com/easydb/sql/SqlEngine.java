@@ -1,40 +1,35 @@
 package com.easydb.sql;
 
 import com.easydb.sql.result.ResultSet;
+import com.easydb.sql.command.SqlCommand;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Interface for SQL operations in EasyDB.
+ * Interface for executing SQL commands.
  */
 public interface SqlEngine {
     /**
-     * Execute a SQL query.
-     *
-     * @param sql The SQL query to execute
-     * @return A future that completes with the result set
+     * Execute a SQL query that returns a result set.
      */
     CompletableFuture<ResultSet> executeQuery(String sql);
 
     /**
-     * Execute a SQL update statement.
-     *
-     * @param sql The SQL update statement to execute
-     * @return A future that completes with the number of rows affected
+     * Execute a SQL update that returns the number of affected rows.
      */
     CompletableFuture<Integer> executeUpdate(String sql);
 
     /**
-     * Prepare a SQL statement.
-     *
-     * @param sql The SQL statement to prepare
-     * @return A future that completes with the prepared statement
+     * Execute a SQL command.
+     */
+    CompletableFuture<Object> execute(SqlCommand command);
+
+    /**
+     * Prepare a SQL statement for execution.
      */
     CompletableFuture<PreparedStatement> prepareStatement(String sql);
 
     /**
-     * Begin a transaction.
-     *
-     * @return A future that completes with the transaction
+     * Begin a new transaction.
      */
     CompletableFuture<Transaction> beginTransaction();
 }

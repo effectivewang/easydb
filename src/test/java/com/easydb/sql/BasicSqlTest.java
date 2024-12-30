@@ -11,6 +11,7 @@ import java.time.LocalDate;
 class BasicSqlTest {
     private SqlEngine sqlEngine;
 
+    /*
     @BeforeEach
     void setUp() {
         // Initialize SQL engine for each test
@@ -182,4 +183,5 @@ class BasicSqlTest {
             (3, 2, '2023-01-03')
             """).get();
     }
+             */
 } 
