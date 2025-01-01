@@ -15,7 +15,6 @@ EasyDB is an experimental, in-memory database system developed as an AI-assisted
 - Multiple index types (Planned):
   - B-tree index
   - Hash index
-  - GiST (Generalized Search Tree) index
   - GIN (Generalized Inverted Index)
 
 ## Note

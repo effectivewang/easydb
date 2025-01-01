@@ -9,12 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * Implementation of the Transaction interface.
  */
 public class TransactionImpl implements Transaction {
-    private final UUID id;
+    private final Long id;
     private final Set<TupleId> readSet;
-    private final Map<UUID, Tuple> writeSet;
+    private final Map<Long, Tuple> writeSet;
     private TransactionStatus status;
 
-    public TransactionImpl(UUID id) {
+    public TransactionImpl(Long id) {
         this.id = id;
         this.readSet = Collections.synchronizedSet(new HashSet<>());
         this.writeSet = new ConcurrentHashMap<>();
@@ -22,7 +22,7 @@ public class TransactionImpl implements Transaction {
     }
 
     @Override
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
@@ -42,7 +42,7 @@ public class TransactionImpl implements Transaction {
     }
 
     @Override
-    public Map<UUID, Tuple> getWriteSet() {
+    public Map<Long, Tuple> getWriteSet() {
         return Collections.unmodifiableMap(writeSet);
     }
 

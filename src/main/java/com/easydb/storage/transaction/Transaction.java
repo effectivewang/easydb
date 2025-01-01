@@ -8,7 +8,7 @@ import java.util.*;
  * Interface for database transactions.
  */
 public interface Transaction {
-    UUID getId();
+    Long getId();
     
     TransactionStatus getStatus();
     
@@ -16,7 +16,7 @@ public interface Transaction {
     
     void addToWriteSet(Tuple tuple);
     
-    Map<UUID, Tuple> getWriteSet();
+    Map<Long, Tuple> getWriteSet();
     
     void addToReadSet(TupleId tupleId);
     

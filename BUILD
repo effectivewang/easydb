@@ -25,10 +25,17 @@ java_library(
 )
 
 java_library(
+    name = "easydb-index",
+    srcs = glob(["src/main/java/com/easydb/index/**/*.java"]),
+    javacopts = JAVA_OPTS,
+)
+
+java_library(
     name = "easydb-storage",
     srcs = glob(["src/main/java/com/easydb/storage/**/*.java"]),
     deps = [
         ":easydb-core",
+        ":easydb-index",
     ],
     javacopts = JAVA_OPTS,
 )
@@ -39,6 +46,7 @@ java_library(
     deps = [
         ":easydb-core",
         ":easydb-storage",
+        ":easydb-index",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_core_jackson_core",
         "@maven//:com_fasterxml_jackson_core_jackson_annotations",
@@ -53,7 +61,7 @@ java_test(
     main_class = "org.junit.platform.console.ConsoleLauncher",
     args = [
         "--select-package=com.easydb.sql",
-        "--details=verbose", 
+        "--details=summary", 
     ],
     deps = [
         ":easydb-core",

@@ -19,20 +19,20 @@ public interface WriteAheadLog {
     /**
      * Logs a transaction begin.
      */
-    void logBegin(UUID transactionId);
+    void logBegin(Long transactionId);
 
     /**
      * Logs a tuple insert.
      */
-    void logInsert(UUID transactionId, String tableName, Tuple tuple);
+    void logInsert(Long transactionId, String tableName, Tuple tuple);
 
     /**
      * Logs a tuple update.
      */
-    void logUpdate(UUID transactionId, String tableName, Tuple oldTuple, Tuple newTuple);
+    void logUpdate(Long transactionId, String tableName, Tuple oldTuple, Tuple newTuple);
 
     /**
      * Logs a tuple delete.
      */
-    void logDelete(UUID transactionId, String tableName, Tuple tuple);
+    void logDelete(Long transactionId, String tableName, Tuple tuple);
 } 

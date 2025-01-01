@@ -2,6 +2,7 @@ package com.easydb.storage;
 
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
+import com.easydb.index.HashIndex;
 import com.easydb.storage.transaction.Transaction;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -13,23 +14,25 @@ import java.util.stream.Collectors;
  */
 public class InMemoryStorage implements Storage {
     private final Map<String, TableMetadata> tables;
-    private final Map<String, Map<TupleId, Tuple>> tuples;
+    private final Map<String, HashIndex<TupleId, Tuple>> tupleIndexes;
     private final Map<String, Map<String, Map<String, Set<TupleId>>>> indexes;
 
     public InMemoryStorage() {
         this.tables = new ConcurrentHashMap<>();
-        this.tuples = new ConcurrentHashMap<>();
+        this.tupleIndexes = new ConcurrentHashMap<>();
         this.indexes = new ConcurrentHashMap<>();
     }
 
+    @Override
     public CompletableFuture<Void> createTable(TableMetadata metadata) {
         return CompletableFuture.runAsync(() -> {
             tables.put(metadata.tableName(), metadata);
-            tuples.put(metadata.tableName(), new ConcurrentHashMap<>());
+            tupleIndexes.put(metadata.tableName(), new HashIndex<>(1000));
             indexes.put(metadata.tableName(), new ConcurrentHashMap<>());
         });
     }
 
+    @Override
     public CompletableFuture<Void> createIndex(IndexMetadata metadata) {
         return CompletableFuture.runAsync(() -> {
             String tableName = metadata.tableName();
@@ -40,7 +43,13 @@ public class InMemoryStorage implements Storage {
             Map<String, Set<TupleId>> indexMap = new ConcurrentHashMap<>();
             
             // Index existing tuples
-            Map<TupleId, Tuple> tableTuples = tuples.get(tableName);
+            Map<TupleId, Tuple> tableTuples = tupleIndexes.get(tableName).range(TupleId.MIN, TupleId.MAX)
+                .join()
+                .stream()
+                .collect(Collectors.toMap(
+                    tuple -> tuple.id(),
+                    tuple -> tuple
+                ));
             List<Class<?>> columnTypes = tableMetadata.columns().stream()
                 .map(column -> column.type().getJavaType())
                 .collect(Collectors.toList());
@@ -56,19 +65,21 @@ public class InMemoryStorage implements Storage {
         });
     }
 
+    @Override
     public CompletableFuture<Void> insertTuple(Tuple tuple) {
         return CompletableFuture.runAsync(() -> {
             String tableName = tuple.id().tableName();
+            HashIndex<TupleId, Tuple> tupleIndex = tupleIndexes.get(tableName);
+            
+            // Insert into main index
+            tupleIndex.insert(tuple.id(), tuple);
+
+            // Update secondary indexes
             TableMetadata metadata = tables.get(tableName);
             List<Class<?>> columnTypes = metadata.columns().stream()
                 .map(column -> column.type().getJavaType())
                 .collect(Collectors.toList());
 
-            // Store tuple
-            tuples.get(tableName).put(tuple.id(), tuple);
-
-            System.out.println("INSERTED: " + tuple.getValues(columnTypes) + ", Total: " + tuples.get(tableName).size());
-            // Update indexes
             Map<String, Map<String, Set<TupleId>>> tableIndexes = indexes.get(tableName);
             for (Map.Entry<String, Map<String, Set<TupleId>>> indexEntry : tableIndexes.entrySet()) {
                 String indexName = indexEntry.getKey();
@@ -82,6 +93,7 @@ public class InMemoryStorage implements Storage {
         });
     }
 
+    @Override
     public CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions) {
         return CompletableFuture.supplyAsync(() -> {
             TableMetadata metadata = tables.get(tableName);
@@ -89,11 +101,35 @@ public class InMemoryStorage implements Storage {
                 .map(column -> column.type().getJavaType())
                 .collect(Collectors.toList());
 
-            System.out.println("FINDING: " + metadata + ", " + tuples.get(tableName).entrySet() + ", Conditions: " + conditions);
-            // Find matching tuples
-            return tuples.get(tableName).entrySet().stream()
-                .filter(entry -> matchesConditions(entry.getValue(), conditions, columnTypes))
-                .map(Map.Entry::getValue)
+            HashIndex<TupleId, Tuple> tupleIndex = tupleIndexes.get(tableName);
+            
+            // Use index for lookup if possible
+            if (conditions != null && !conditions.isEmpty() && metadata.indexes() != null) {
+                // Find best matching index
+                for (IndexMetadata idx : metadata.indexes().values()) {
+                    if (idx.columnNames().stream().allMatch(conditions::containsKey)) {
+                        String indexKey = buildIndexKey(tableName, idx.columnNames(), 
+                            idx.columnNames().stream()
+                                .map(conditions::get)
+                                .collect(Collectors.toList()));
+                        
+                        Set<TupleId> tupleIds = indexes.get(tableName)
+                            .get(idx.indexName())
+                            .get(indexKey);
+                            
+                        if (tupleIds != null) {
+                            return tupleIds.stream()
+                                .map(id -> tupleIndex.search(id).join())
+                                .filter(tuple -> tuple != null && matchesConditions(tuple, conditions, columnTypes))
+                                .collect(Collectors.toList());
+                        }
+                    }
+                }
+            }
+
+            // Fall back to full scan if no index matches
+            return tupleIndex.range(TupleId.MIN, TupleId.MAX).join().stream()
+                .filter(tuple -> matchesConditions(tuple, conditions, columnTypes))
                 .collect(Collectors.toList());
         });
     }

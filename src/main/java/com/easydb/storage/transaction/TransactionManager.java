@@ -2,6 +2,8 @@ package com.easydb.storage.transaction;
 
 import com.easydb.storage.WriteAheadLog;
 import com.easydb.storage.Tuple;
+
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -11,8 +13,8 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public class TransactionManager {
     private final WriteAheadLog wal;
-    private final Map<UUID, Transaction> activeTransactions;
-    private final Map<UUID, Set<ReadWriteLock>> transactionLocks;
+    private final Map<Long, Transaction> activeTransactions;
+    private final Map<Long, Set<ReadWriteLock>> transactionLocks;
 
     public TransactionManager(WriteAheadLog wal) {
         this.wal = wal;
@@ -21,7 +23,7 @@ public class TransactionManager {
     }
 
     public Transaction beginTransaction() {
-        UUID transactionId = UUID.randomUUID();
+        Long transactionId = Instant.now().toEpochMilli();
         Transaction transaction = new TransactionImpl(transactionId);
         activeTransactions.put(transactionId, transaction);
         transactionLocks.put(transactionId, Collections.synchronizedSet(new HashSet<>()));
@@ -31,7 +33,7 @@ public class TransactionManager {
 
     public void prepareCommit(Transaction transaction) {
         // Write all changes to WAL
-        for (Map.Entry<UUID, Tuple> entry : transaction.getWriteSet().entrySet()) {
+        for (Map.Entry<Long, Tuple> entry : transaction.getWriteSet().entrySet()) {
             Tuple tuple = entry.getValue();
             wal.logInsert(transaction.getId(), tuple.id().tableName(), tuple);
         }
