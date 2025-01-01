@@ -46,6 +46,11 @@ public class InsertTest {
         CompletableFuture<Object> result = sqlEngine.execute(command);
         assertNotNull(result);
         assertEquals(1, result.join());
+
+        String selectSql = "SELECT * FROM users WHERE id = 1";
+        ResultSet resultSet = sqlEngine.executeQuery(selectSql).join();
+        assertNotNull(resultSet);
+        assertEquals(1, resultSet.getRowCount());
     }
 
     @Test

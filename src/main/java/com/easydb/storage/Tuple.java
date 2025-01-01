@@ -1,6 +1,7 @@
 package com.easydb.storage;
 
 import java.util.List;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /**
@@ -11,12 +12,13 @@ public class Tuple {
     private final byte[] values;
     private final List<Integer> valueLengths;
 
-    public Tuple(TupleId id, List<Object> values) {
+    public Tuple(TupleId id, List<Object> rowValues) {
         this.id = id;
-        this.valueLengths = values.stream()
+        this.valueLengths = rowValues.stream()
             .map(value -> ByteUtils.getSerializedLength(value))
             .collect(Collectors.toList());
-        this.values = ByteUtils.serializeValues(values, valueLengths);
+
+        this.values = ByteUtils.serializeValues(rowValues, valueLengths);
     }
 
     public TupleId id() {

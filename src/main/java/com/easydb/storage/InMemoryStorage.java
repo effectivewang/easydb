@@ -67,6 +67,7 @@ public class InMemoryStorage implements Storage {
             // Store tuple
             tuples.get(tableName).put(tuple.id(), tuple);
 
+            System.out.println("INSERTED: " + tuple.getValues(columnTypes) + ", Total: " + tuples.get(tableName).size());
             // Update indexes
             Map<String, Map<String, Set<TupleId>>> tableIndexes = indexes.get(tableName);
             for (Map.Entry<String, Map<String, Set<TupleId>>> indexEntry : tableIndexes.entrySet()) {
@@ -88,6 +89,7 @@ public class InMemoryStorage implements Storage {
                 .map(column -> column.type().getJavaType())
                 .collect(Collectors.toList());
 
+            System.out.println("FINDING: " + metadata + ", " + tuples.get(tableName).entrySet() + ", Conditions: " + conditions);
             // Find matching tuples
             return tuples.get(tableName).entrySet().stream()
                 .filter(entry -> matchesConditions(entry.getValue(), conditions, columnTypes))
@@ -105,6 +107,8 @@ public class InMemoryStorage implements Storage {
         List<String> columnNames = tables.get(tuple.id().tableName()).columns().stream()
             .map(column -> column.name())
             .collect(Collectors.toList());
+
+        System.out.println("MATCHING: " + tuple + ", " + columnNames + ", " + values);
 
         return conditions.entrySet().stream().allMatch(entry -> {
             int columnIndex = columnNames.indexOf(entry.getKey());

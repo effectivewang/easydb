@@ -53,7 +53,7 @@ java_test(
     main_class = "org.junit.platform.console.ConsoleLauncher",
     args = [
         "--select-package=com.easydb.sql",
-        "--details=verbose",
+        "--details=verbose", 
     ],
     deps = [
         ":easydb-core",

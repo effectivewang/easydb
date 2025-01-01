@@ -2,6 +2,7 @@ package com.easydb.storage;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -44,15 +45,17 @@ public class ByteUtils {
             Class<?> type = types.get(i);
             int length = valueLengths.get(i);
 
-            if (type == Long.class) {
+            System.out.println("Type: " + type + ", Length: " + length);
+            if (type.equals(Long.class)) {
                 values.add(buffer.getLong());
-            } else if (type == Integer.class) {
+            } else if (type.equals(Integer.class)) {
+                System.out.println("Integer: " + buffer.getInt());
                 values.add(buffer.getInt());
-            } else if (type == Double.class) {
+            } else if (type.equals(Double.class)) {
                 values.add(buffer.getDouble());
-            } else if (type == Boolean.class) {
+            } else if (type.equals(Boolean.class)) {
                 values.add(buffer.get() == 1);
-            } else if (type == String.class) {
+            } else if (type.equals(String.class)) {
                 byte[] stringBytes = new byte[length];
                 buffer.get(stringBytes);
                 values.add(new String(stringBytes).trim());
@@ -60,6 +63,7 @@ public class ByteUtils {
                 buffer.position(buffer.position() + length);
                 values.add(null);
             }
+
         }
 
         return values;
