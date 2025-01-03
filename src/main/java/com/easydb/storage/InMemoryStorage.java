@@ -14,54 +14,35 @@ import java.util.stream.Collectors;
  */
 public class InMemoryStorage implements Storage {
     private final Map<String, TableMetadata> tables;
-    private final Map<String, HashIndex<TupleId, Tuple>> tupleIndexes;
-    private final Map<String, Map<String, Map<String, Set<TupleId>>>> indexes;
+    private final Map<TupleId, Tuple> tableTuples;
+    private final Map<String, HashIndex<String, TupleId>> indexMap;
 
     public InMemoryStorage() {
         this.tables = new ConcurrentHashMap<>();
-        this.tupleIndexes = new ConcurrentHashMap<>();
-        this.indexes = new ConcurrentHashMap<>();
+        this.tableTuples = new ConcurrentHashMap<>();
+        this.indexMap = new ConcurrentHashMap<>();
     }
 
     @Override
     public CompletableFuture<Void> createTable(TableMetadata metadata) {
         return CompletableFuture.runAsync(() -> {
             tables.put(metadata.tableName(), metadata);
-            tupleIndexes.put(metadata.tableName(), new HashIndex<>(1000));
-            indexes.put(metadata.tableName(), new ConcurrentHashMap<>());
         });
     }
 
     @Override
     public CompletableFuture<Void> createIndex(IndexMetadata metadata) {
         return CompletableFuture.runAsync(() -> {
-            String tableName = metadata.tableName();
             String indexName = metadata.indexName();
-            TableMetadata tableMetadata = tables.get(tableName);
-            
-            // Create index map
-            Map<String, Set<TupleId>> indexMap = new ConcurrentHashMap<>();
+            indexMap.put(indexName, new HashIndex<>(1000));
             
             // Index existing tuples
-            Map<TupleId, Tuple> tableTuples = tupleIndexes.get(tableName).range(TupleId.MIN, TupleId.MAX)
-                .join()
-                .stream()
-                .collect(Collectors.toMap(
-                    tuple -> tuple.id(),
-                    tuple -> tuple
-                ));
-            List<Class<?>> columnTypes = tableMetadata.columns().stream()
-                .map(column -> column.type().getJavaType())
-                .collect(Collectors.toList());
-
-            for (Map.Entry<TupleId, Tuple> entry : tableTuples.entrySet()) {
-                List<Object> values = entry.getValue().getValues(columnTypes);
-                String indexKey = buildIndexKey(tableName, metadata.columnNames(), values);
-                indexMap.computeIfAbsent(indexKey, k -> new HashSet<>()).add(entry.getKey());
-            }
-
-            Map<String, Map<String, Set<TupleId>>> tableIndexes = indexes.get(tableName);
-            tableIndexes.put(indexName, indexMap);
+            tableTuples.values().stream()
+                .filter(tuple -> tuple.id().tableName().equals(metadata.tableName()))
+                .forEach(tuple -> {
+                    String indexKey = buildIndexKey(metadata, tuple);
+                    indexMap.get(indexName).insert(indexKey, tuple.id()).join();
+                });
         });
     }
 
@@ -69,26 +50,23 @@ public class InMemoryStorage implements Storage {
     public CompletableFuture<Void> insertTuple(Tuple tuple) {
         return CompletableFuture.runAsync(() -> {
             String tableName = tuple.id().tableName();
-            HashIndex<TupleId, Tuple> tupleIndex = tupleIndexes.get(tableName);
-            
-            // Insert into main index
-            tupleIndex.insert(tuple.id(), tuple);
-
-            // Update secondary indexes
             TableMetadata metadata = tables.get(tableName);
-            List<Class<?>> columnTypes = metadata.columns().stream()
-                .map(column -> column.type().getJavaType())
-                .collect(Collectors.toList());
+            
+            // Store in primary storage
+            tableTuples.put(tuple.id(), tuple);
 
-            Map<String, Map<String, Set<TupleId>>> tableIndexes = indexes.get(tableName);
-            for (Map.Entry<String, Map<String, Set<TupleId>>> indexEntry : tableIndexes.entrySet()) {
-                String indexName = indexEntry.getKey();
-                IndexMetadata indexMetadata = metadata.indexes().get(indexName);
-                if (indexMetadata == null) continue;
-
-                List<Object> values = tuple.getValues(columnTypes);
-                String indexKey = buildIndexKey(tableName, indexMetadata.columnNames(), values);
-                indexEntry.getValue().computeIfAbsent(indexKey, k -> new HashSet<>()).add(tuple.id());
+            // Update indexes
+            if (metadata.indexes() != null) {
+                for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
+                    String indexName = indexEntry.getKey();
+                    IndexMetadata indexMetadata = indexEntry.getValue();
+                    HashIndex<String, TupleId> index = indexMap.get(indexName);
+                    
+                    if (index != null) {
+                        String indexKey = buildIndexKey(indexMetadata, tuple);
+                        index.insert(indexKey, tuple.id()).join();
+                    }
+                }
             }
         });
     }
@@ -97,38 +75,43 @@ public class InMemoryStorage implements Storage {
     public CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions) {
         return CompletableFuture.supplyAsync(() -> {
             TableMetadata metadata = tables.get(tableName);
-            List<Class<?>> columnTypes = metadata.columns().stream()
-                .map(column -> column.type().getJavaType())
-                .collect(Collectors.toList());
+            List<Class<?>> columnTypes = metadata.columnTypes();
 
-            HashIndex<TupleId, Tuple> tupleIndex = tupleIndexes.get(tableName);
-            
-            // Use index for lookup if possible
+            // Try using index if conditions match
             if (conditions != null && !conditions.isEmpty() && metadata.indexes() != null) {
-                // Find best matching index
-                for (IndexMetadata idx : metadata.indexes().values()) {
-                    if (idx.columnNames().stream().allMatch(conditions::containsKey)) {
-                        String indexKey = buildIndexKey(tableName, idx.columnNames(), 
-                            idx.columnNames().stream()
-                                .map(conditions::get)
-                                .collect(Collectors.toList()));
-                        
-                        Set<TupleId> tupleIds = indexes.get(tableName)
-                            .get(idx.indexName())
-                            .get(indexKey);
+                for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
+                    String indexName = indexEntry.getKey();
+                    IndexMetadata indexMetadata = indexEntry.getValue();
+                    List<String> indexColumns = indexMetadata.columnNames();
+                    
+                    // Check if all indexed columns have conditions
+                    if (indexColumns.stream().allMatch(conditions::containsKey)) {
+                        List<Object> indexValues = indexColumns.stream()
+                            .map(conditions::get)
+                            .collect(Collectors.toList());
                             
-                        if (tupleIds != null) {
-                            return tupleIds.stream()
-                                .map(id -> tupleIndex.search(id).join())
-                                .filter(tuple -> tuple != null && matchesConditions(tuple, conditions, columnTypes))
-                                .collect(Collectors.toList());
+                        String indexKey = buildTypedKey(indexValues);
+                        HashIndex<String, TupleId> index = indexMap.get(indexName);
+                        
+                        if (index != null) {
+                            CompletableFuture<TupleId> tupleIdFuture = index.search(indexKey);
+                            if (tupleIdFuture != null) {
+                                TupleId tupleId = tupleIdFuture.join();
+                                if (tupleId != null) {
+                                    Tuple tuple = tableTuples.get(tupleId);
+                                    if (tuple != null && matchesConditions(tuple, conditions, columnTypes)) {
+                                        return Collections.singletonList(tuple);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // Fall back to full scan if no index matches
-            return tupleIndex.range(TupleId.MIN, TupleId.MAX).join().stream()
+            // Fall back to full scan
+            return tableTuples.values().stream()
+                .filter(tuple -> tuple.id().tableName().equals(tableName))
                 .filter(tuple -> matchesConditions(tuple, conditions, columnTypes))
                 .collect(Collectors.toList());
         });
@@ -144,8 +127,6 @@ public class InMemoryStorage implements Storage {
             .map(column -> column.name())
             .collect(Collectors.toList());
 
-        System.out.println("MATCHING: " + tuple + ", " + columnNames + ", " + values);
-
         return conditions.entrySet().stream().allMatch(entry -> {
             int columnIndex = columnNames.indexOf(entry.getKey());
             if (columnIndex == -1) {
@@ -156,17 +137,39 @@ public class InMemoryStorage implements Storage {
         });
     }
 
-    private String buildIndexKey(String tableName, List<String> indexColumns, List<Object> values) {
-        List<String> columnNames = tables.get(tableName).columns().stream()
-            .map(column -> column.name())
-            .collect(Collectors.toList());
-
-        return indexColumns.stream()
-            .map(columnName -> {
-                int columnIndex = columnNames.indexOf(columnName);
-                return values.get(columnIndex).toString();
-            })
-            .collect(Collectors.joining(":"));
+    private String buildIndexKey(IndexMetadata indexMetadata, Tuple tuple) {
+        List<String> indexedColumns = indexMetadata.columnNames();
+        TableMetadata metadata = tables.get(tuple.id().tableName());
+        List<Object> values = tuple.getValues(metadata.columnTypes());
+        List<Object> indexValues = new ArrayList<>();
+        
+        // Only use values from indexed columns
+        for (String columnName : indexedColumns) {
+            int columnIndex = metadata.columnNames().indexOf(columnName);
+            if (columnIndex >= 0) {
+                indexValues.add(values.get(columnIndex));
+            }
+        }
+        
+        return buildTypedKey(indexValues);
+    }
+    private String buildTypedKey(List<Object> values) {
+        StringBuilder key = new StringBuilder();
+        for (int i = 0; i < values.size(); i++) {
+            Object value = values.get(i);
+            if (i > 0) key.append(":");
+            
+            if (value instanceof Number) {
+                // Pad numbers for proper lexicographical ordering
+                key.append(String.format("%020d", ((Number) value).longValue()));
+            } else if (value instanceof String) {
+                // Escape special characters
+                key.append(((String) value).replace(":", "\\:"));
+            } else {
+                key.append(value);
+            }
+        }
+        return key.toString();
     }
 
     public CompletableFuture<TableMetadata> getTableMetadata(String tableName) {

@@ -4,6 +4,8 @@ import com.easydb.storage.InMemoryStorage;
 import com.easydb.storage.Tuple;
 import com.easydb.storage.TupleId;
 import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.metadata.IndexType;
+import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.core.Column;
 import com.easydb.core.DataType;
 import com.easydb.sql.command.SqlCommand;
@@ -35,6 +37,9 @@ public class InsertTest {
         );
         TableMetadata table = new TableMetadata("users", columns);
         storage.createTable(table).join();
+
+        IndexMetadata index = new IndexMetadata("id", "users", Arrays.asList("id"), false, IndexType.HASH);
+        storage.createIndex(index).join();
     }
 
     @Test
@@ -51,7 +56,13 @@ public class InsertTest {
         ResultSet resultSet = sqlEngine.executeQuery(selectSql).join();
         assertNotNull(resultSet);
         assertEquals(1, resultSet.getRowCount());
+
+        String selectSql2 = "SELECT * FROM users WHERE name = 'John'";
+        resultSet = sqlEngine.executeQuery(selectSql2).join();
+        assertNotNull(resultSet);
+        assertEquals(1, resultSet.getRowCount());
     }
+
 
     @Test
     void testInsertWithNullValue() {

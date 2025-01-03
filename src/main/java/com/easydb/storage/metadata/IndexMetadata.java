@@ -1,7 +1,13 @@
 package com.easydb.storage.metadata;
 
 import java.util.List;
+import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.time.Instant;
+import com.easydb.storage.TupleId;
+import com.easydb.storage.metadata.IndexType;
+
 
 /**
  * Stores metadata about an index including its columns and statistics.
@@ -12,16 +18,8 @@ public record IndexMetadata(
     List<String> columnNames,
     boolean isUnique,
     IndexType type,
-    Instant createdAt,
-    long entryCount,
-    long sizeInBytes
+    Instant createdAt
 ) {
-    public enum IndexType {
-        BTREE,
-        HASH,
-        BITMAP
-    }
-
     public IndexMetadata(String indexName, String tableName, List<String> columnNames, boolean isUnique, IndexType type) {
         this(
             indexName,
@@ -29,22 +27,13 @@ public record IndexMetadata(
             columnNames,
             isUnique,
             type,
-            Instant.now(),
-            0L,
-            0L
+            Instant.now()
         );
     }
 
-    public IndexMetadata withStats(long newEntryCount, long newSizeInBytes) {
-        return new IndexMetadata(
-            indexName,
-            tableName,
-            columnNames,
-            isUnique,
-            type,
-            createdAt,
-            newEntryCount,
-            newSizeInBytes
-        );
+    public List<String> columnNames() {
+        return columnNames;
     }
+
+    
 } 
