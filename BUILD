@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library", "java_test")
+load("@rules_java//java:defs.bzl", "java_library", "java_test", "java_binary")
 load("@rules_jvm_external//:extensions.bzl", "maven")
 
 package(default_visibility = ["//visibility:public"])
@@ -40,6 +40,18 @@ java_library(
     javacopts = JAVA_OPTS,
 )
 
+java_binary(
+    name = "easydb",
+    srcs = glob(["src/main/java/com/easydb/*.java"]),
+    main_class = "com.easydb.Main",
+    deps = [
+        ":easydb-storage",
+        ":easydb-sql",
+        ":easydb-core",
+    ],
+    javacopts = JAVA_OPTS,
+)
+
 java_library(
     name = "easydb-sql",
     srcs = glob(["src/main/java/com/easydb/sql/**/*.java"]),
@@ -62,12 +74,13 @@ java_test(
     args = [
         "--select-package=com.easydb.sql",
         "--details=verbose", 
-        
+
     ],
     deps = [
         ":easydb-core",
         ":easydb-storage",
         ":easydb-sql",
+        ":easydb-index",
         "@maven//:org_junit_jupiter_junit_jupiter_api",
         "@maven//:org_junit_jupiter_junit_jupiter_engine",
         "@maven//:org_junit_platform_junit_platform_console",

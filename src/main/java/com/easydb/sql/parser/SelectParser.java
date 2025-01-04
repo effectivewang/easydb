@@ -64,11 +64,7 @@ public class SelectParser implements SqlParser {
             
             // Try to parse as number if possible
             try {
-                if (value.contains(".")) {
-                    conditions.put(key, Double.parseDouble(value));
-                } else {
-                    conditions.put(key, Long.parseLong(value));
-                }
+                conditions.put(key, Integer.parseInt(value));
             } catch (NumberFormatException e) {
                 conditions.put(key, value);
             }

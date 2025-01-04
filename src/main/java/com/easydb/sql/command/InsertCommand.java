@@ -28,14 +28,16 @@ public class InsertCommand implements SqlCommand {
 
     @Override
     public CompletableFuture<Object> execute(Storage storage) {
-        
         storage.getTableMetadata(tableName).join();
         return CompletableFuture.supplyAsync(() -> {
-                for (List<Object> value : values) {
-                    Tuple tuple = new Tuple(TupleId.create(tableName), value);
-                    storage.insertTuple(tuple);
-                }
-                return values.size();
-            });
+            CompletableFuture<Void>[] futures = new CompletableFuture[values.size()];
+            for (int i = 0; i < values.size(); i++) {
+                List<Object> value = values.get(i);
+                Tuple tuple = new Tuple(TupleId.create(tableName), value);
+                futures[i] = storage.insertTuple(tuple);
+            }
+            CompletableFuture.allOf(futures).join();
+            return values.size();
+        });
     }
 } 

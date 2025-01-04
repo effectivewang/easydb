@@ -33,8 +33,15 @@ public class InMemoryStorage implements Storage {
     @Override
     public CompletableFuture<Void> createIndex(IndexMetadata metadata) {
         return CompletableFuture.runAsync(() -> {
+            TableMetadata tableMetadata = tables.get(metadata.tableName());
+            if (tableMetadata == null) {
+                throw new IllegalArgumentException("Table not found: " + metadata.tableName());
+            }
+
             String indexName = metadata.indexName();
             indexMap.put(indexName, new HashIndex<>(1000));
+
+            tableMetadata.indexes().put(indexName, metadata);
             
             // Index existing tuples
             tableTuples.values().stream()
@@ -43,6 +50,7 @@ public class InMemoryStorage implements Storage {
                     String indexKey = buildIndexKey(metadata, tuple);
                     indexMap.get(indexName).insert(indexKey, tuple.id()).join();
                 });
+            
         });
     }
 

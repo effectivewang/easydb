@@ -6,5 +6,5 @@ package com.easydb.storage.metadata;
 public enum IndexType {
     BTREE,
     HASH,
-    BITMAP
+    GIN
 }

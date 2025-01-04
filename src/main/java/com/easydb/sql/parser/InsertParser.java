@@ -53,10 +53,8 @@ public class InsertParser implements SqlParser {
             try {
                 if (value.equalsIgnoreCase("null")) {
                     values.add(null);
-                } else if (value.contains(".")) {
-                    values.add(Double.parseDouble(value));
                 } else {
-                    values.add(Long.parseLong(value));
+                    values.add(Integer.parseInt(value));
                 }
             } catch (NumberFormatException e) {
                 values.add(value);

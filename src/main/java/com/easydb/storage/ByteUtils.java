@@ -45,11 +45,9 @@ public class ByteUtils {
             Class<?> type = types.get(i);
             int length = valueLengths.get(i);
 
-            System.out.println("Type: " + type + ", Length: " + length);
             if (type.equals(Long.class)) {
                 values.add(buffer.getLong());
             } else if (type.equals(Integer.class)) {
-                System.out.println("Integer: " + buffer.getInt());
                 values.add(buffer.getInt());
             } else if (type.equals(Double.class)) {
                 values.add(buffer.getDouble());
@@ -70,9 +68,7 @@ public class ByteUtils {
     }
 
     public static int getSerializedLength(Object value) {
-        if (value == null) {
-            return 0;
-        } else if (value instanceof Long) {
+        if (value instanceof Long) {
             return Long.BYTES;
         } else if (value instanceof Integer) {
             return Integer.BYTES;
@@ -82,6 +78,8 @@ public class ByteUtils {
             return 1;
         } else if (value instanceof String) {
             return ((String) value).getBytes().length;
+        } else if (value == null) {
+            return 0;
         } else {
             throw new IllegalArgumentException("Unsupported type: " + value.getClass());
         }
