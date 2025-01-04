@@ -1,17 +1,19 @@
 package com.easydb.sql.parser;
 
 import com.easydb.sql.command.SqlCommand;
-
+import com.easydb.storage.Storage;
 public class SqlParserFactory {
     private final CreateTableParser createTableParser;
     private final CreateIndexParser createIndexParser;
     private final InsertParser insertParser;
     private final SelectParser selectParser;
+    private final Storage storage;
 
-    public SqlParserFactory() {
+    public SqlParserFactory(Storage storage) {
+        this.storage = storage;
         this.createTableParser = new CreateTableParser();
         this.createIndexParser = new CreateIndexParser();
-        this.insertParser = new InsertParser();
+        this.insertParser = new InsertParser(storage);
         this.selectParser = new SelectParser();
     }
 

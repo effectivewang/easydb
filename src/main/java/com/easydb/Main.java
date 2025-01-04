@@ -35,12 +35,12 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        System.out.println("EasyDB - Java 21 In-Memory Database");
+        System.out.println("EasyDB - An educational database");
         
         // Initialize components
         InMemoryStorage storage = new InMemoryStorage();
         SqlEngine sqlEngine = new DefaultSqlEngine(storage);
-        SqlParserFactory parserFactory = new SqlParserFactory();
+        SqlParserFactory parserFactory = new SqlParserFactory(storage);
         Scanner scanner = new Scanner(System.in);
 
         // Initialize database schema

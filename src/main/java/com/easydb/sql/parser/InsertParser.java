@@ -5,6 +5,9 @@ import com.easydb.sql.command.SqlCommand;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.easydb.storage.Storage;
+import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.core.Column;
 
 /**
  * Parser for SQL INSERT statements.
@@ -15,6 +18,12 @@ public class InsertParser implements SqlParser {
         Pattern.CASE_INSENSITIVE
     );
 
+    private final Storage storage;
+
+    public InsertParser(Storage storage) {
+        this.storage = storage;
+    }
+
     @Override
     public SqlCommand parse(String sql) {
         Matcher matcher = INSERT_PATTERN.matcher(sql.trim());
@@ -23,8 +32,9 @@ public class InsertParser implements SqlParser {
         }
 
         String tableName = matcher.group(1).trim();
+        TableMetadata tableMetadata = storage.getTableMetadata(tableName).join();
         List<String> columns = parseColumns(matcher.group(2));
-        List<List<Object>> values = parseValues(matcher.group(3));
+        List<List<Object>> values = parseValues(tableMetadata, columns, matcher.group(3));
 
         return new InsertCommand(tableName, columns, values);
     }
@@ -36,29 +46,26 @@ public class InsertParser implements SqlParser {
             .toList();
     }
 
-    private List<List<Object>> parseValues(String valuesStr) {
+    private List<List<Object>> parseValues(TableMetadata tableMetadata, List<String> columns, String valuesStr) {
         List<List<Object>> result = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         
         String[] parts = valuesStr.split("\\s*,\\s*");
-        for (String part : parts) {
-            String value = part.trim();
+
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i].trim();
+            String columnName = columns.get(i);
             
             // Remove quotes if present
-            if (value.startsWith("'") && value.endsWith("'")) {
-                value = value.substring(1, value.length() - 1);
+            if (part.startsWith("'") && part.endsWith("'")) {
+                part = part.substring(1, part.length() - 1);
             }
             
-            // Try to parse as number if possible
-            try {
-                if (value.equalsIgnoreCase("null")) {
-                    values.add(null);
-                } else {
-                    values.add(Integer.parseInt(value));
-                }
-            } catch (NumberFormatException e) {
-                values.add(value);
-            }
+            Column column = tableMetadata.columns().stream()
+                .filter(c -> c.name().equalsIgnoreCase(columnName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Column " + columnName + " not found in table " + tableMetadata.tableName()));
+            values.add(column.parseValue(part));
         }
         
         result.add(values);

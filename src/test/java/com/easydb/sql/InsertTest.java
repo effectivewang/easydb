@@ -29,8 +29,8 @@ public class InsertTest {
     void setUp() {
         storage = new InMemoryStorage();
         sqlEngine = new DefaultSqlEngine(storage);
-        parser = new InsertParser();
-        parserFactory = new SqlParserFactory();
+        parser = new InsertParser(storage);
+        parserFactory = new SqlParserFactory(storage);
         String createTable = """
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY,
@@ -71,7 +71,7 @@ public class InsertTest {
 
     @Test
     void testInsertWithNullValue() {
-        String sql = "INSERT INTO users (id, name, age) VALUES (2, 'Jane', null)";
+        String sql = "INSERT INTO users (id, name, age) VALUES (2, 'John', null)";
         SqlCommand command = parser.parse(sql);
         
         CompletableFuture<Object> result = sqlEngine.execute(command);
@@ -82,9 +82,8 @@ public class InsertTest {
     @Test
     void testInvalidInsert() {
         String sql = "INSERT INTO nonexistent (id) VALUES (1)";
-        SqlCommand command = parser.parse(sql);
         
-        assertThrows(IllegalArgumentException.class, () -> sqlEngine.execute(command));
+        assertThrows(IllegalArgumentException.class, () -> parser.parse(sql));
     }
 
     @Test

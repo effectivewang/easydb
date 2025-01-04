@@ -70,4 +70,24 @@ public class Column {
         }
         return sql.toString();
     }
+
+    public Object parseValue(String value) {
+        if (value.equalsIgnoreCase("null")) {
+            if (defaultValue != null) {
+                return defaultValue;
+            } else {
+                if (type == DataType.STRING) {
+                    return "";
+                } else if (type == DataType.INTEGER) {
+                    return 0;
+                } else {
+                    throw new IllegalArgumentException("Invalid default value for column " + name);
+                }
+            }
+        } else if (type == DataType.STRING) {
+            return value;
+        } else {
+            return Integer.parseInt(value);
+        }
+    }
 }

@@ -81,4 +81,5 @@ public record TableMetadata(
             .map(column -> column.name())
             .collect(Collectors.toList());
     }
+    
 } 
