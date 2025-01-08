@@ -3,6 +3,7 @@ package com.easydb.sql.command;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.storage.metadata.IndexType;
 import com.easydb.storage.Storage;
+import com.easydb.core.Transaction;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,6 +40,11 @@ public class CreateIndexCommand implements SqlCommand {
         
         return storage.createIndex(metadata)
             .thenApply(v -> 1); // Return 1 to indicate one index was created
+    }
+
+    @Override
+    public CompletableFuture<Object> execute(Storage storage, Transaction txn) {
+        return execute(storage);
     }
 
     @Override

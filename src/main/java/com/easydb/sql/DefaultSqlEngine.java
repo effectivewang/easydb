@@ -1,42 +1,60 @@
 package com.easydb.sql;
 
 import com.easydb.storage.InMemoryStorage;
-import com.easydb.storage.Tuple;
+import com.easydb.core.Tuple;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.core.Column;
+import com.easydb.core.Transaction;
+import com.easydb.core.IsolationLevel;
+import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.sql.command.SqlCommand;
 import com.easydb.sql.result.ResultSet;
+import com.easydb.storage.transaction.TransactionManager;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class DefaultSqlEngine implements SqlEngine {
     private final InMemoryStorage storage;
+    private final TransactionManager transactionManager;
+    private final SqlParserFactory sqlParserFactory;
 
-    public DefaultSqlEngine(InMemoryStorage storage) {
+    public DefaultSqlEngine(InMemoryStorage storage, TransactionManager transactionManager) {
         this.storage = storage;
+        this.sqlParserFactory = new SqlParserFactory(storage, transactionManager);
+        this.transactionManager = transactionManager;
     }
 
     @Override
     public CompletableFuture<Object> execute(SqlCommand command) {
         return command.execute(storage);
     }
+    
+    public CompletableFuture<Object> execute(SqlCommand command, Transaction txn) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return command.execute(storage, txn).join();
+            } catch (Exception e) {
+                throw e;
+            }
+        });
+    }
 
     @Override
     public CompletableFuture<Integer> executeUpdate(String sql) {
-        // TODO: Implement executeUpdate
-        return CompletableFuture.completedFuture(0);
+        return CompletableFuture.supplyAsync(() -> {
+            SqlCommand cmd = sqlParserFactory.parse(sql);
+            cmd.execute(storage).join();
+            return 1;
+        });
     }
 
-    @Override
-    public CompletableFuture<PreparedStatement> prepareStatement(String sql) {
-        // TODO: Implement prepareStatement
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public CompletableFuture<Transaction> beginTransaction() {
-        return CompletableFuture.completedFuture(null);
+    public CompletableFuture<Integer> executeUpdate(String sql, Transaction txn) {
+        return CompletableFuture.supplyAsync(() -> {
+            SqlCommand cmd = sqlParserFactory.parse(sql);
+            cmd.execute(storage, txn).join();
+            return 1;
+        });
     }
 
     @Override

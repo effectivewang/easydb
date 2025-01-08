@@ -1,4 +1,4 @@
-package com.easydb.storage.transaction;
+package com.easydb.core;
 
 /**
  * Represents the possible states of a database transaction.

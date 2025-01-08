@@ -6,6 +6,10 @@ import com.easydb.sql.SqlEngine;
 import com.easydb.sql.command.SqlCommand;
 import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.sql.result.ResultSet;
+import java.util.concurrent.atomic.AtomicLong;
+import com.easydb.storage.transaction.LockManager;
+import com.easydb.storage.transaction.TransactionManager;
+import com.easydb.storage.transaction.VersionStore;
 import java.util.Scanner;
 
 public class Main {
@@ -36,11 +40,16 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println("EasyDB - An educational database");
-        
         // Initialize components
         InMemoryStorage storage = new InMemoryStorage();
-        SqlEngine sqlEngine = new DefaultSqlEngine(storage);
-        SqlParserFactory parserFactory = new SqlParserFactory(storage);
+
+        VersionStore versionStore = new VersionStore();
+        AtomicLong globalTs = new AtomicLong(1);
+        LockManager lockManager = new LockManager();
+        TransactionManager transactionManager = new TransactionManager(storage, versionStore, globalTs, lockManager);
+
+        SqlEngine sqlEngine = new DefaultSqlEngine(storage, transactionManager);
+        SqlParserFactory parserFactory = new SqlParserFactory(storage, transactionManager);
         Scanner scanner = new Scanner(System.in);
 
         // Initialize database schema

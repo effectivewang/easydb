@@ -1,6 +1,11 @@
 package com.easydb.sql;
 
 import org.junit.jupiter.api.*;
+
+import com.easydb.sql.command.SqlCommand;
+import com.easydb.sql.parser.SqlParser;
+import com.easydb.sql.parser.SqlParserFactory;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
@@ -11,11 +16,14 @@ import java.util.concurrent.TimeUnit;
 
 class MVCCSqlTest {
     private SqlEngine sqlEngine;
+    private SqlParserFactory sqlParserFactory;
+    private Storage storage;   
 
-    /*
     @BeforeEach
     void setUp() {
-        sqlEngine = SqlEngineFactory.create();
+        storage = new InMemoryStorage();
+        sqlEngine = new DefaultSqlEngine(storage);
+        sqlParserFactory = new SqlParserFactory(storage);
         setupTestData();
     }
 
@@ -23,11 +31,13 @@ class MVCCSqlTest {
     void testReadCommitted() throws ExecutionException, InterruptedException {
         // Start transaction 1 with READ COMMITTED isolation
         Transaction tx1 = sqlEngine.beginTransaction().get();
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED").get();
+        SqlCommand cmd1 = sqlParserFactory.parse("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+        cmd1.execute(sqlEngine, tx1);
 
         // Start transaction 2
         Transaction tx2 = sqlEngine.beginTransaction().get();
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED").get();
+        SqlCommand cmd2 = sqlParserFactory.parse("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+        cmd2.execute(sqlEngine, tx2);
 
         // Transaction 1 reads data
         List<Map<String, Object>> result1 = sqlEngine.executeQuery(
@@ -193,5 +203,5 @@ class MVCCSqlTest {
             throw new RuntimeException("Failed to setup test data", e);
         }
     }
-         */
+
 } 

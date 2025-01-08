@@ -2,7 +2,8 @@ package com.easydb.storage;
 
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
-import com.easydb.storage.transaction.Transaction;
+import com.easydb.core.Transaction;
+import com.easydb.core.Tuple;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,6 +27,16 @@ public interface Storage {
     CompletableFuture<Void> insertTuple(Tuple tuple);
 
     /**
+     * Inserts a new tuple into storage.
+     */
+    CompletableFuture<Void> insertTuple(Tuple tuple, Transaction txn);
+
+    /**
+     * Finds tuples matching the specified conditions.
+     */
+    CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions, Transaction txn);
+
+    /**
      * Finds tuples matching the specified conditions.
      */
     CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions);
@@ -36,7 +47,8 @@ public interface Storage {
     CompletableFuture<TableMetadata> getTableMetadata(String tableName);
 
     /**
-     * Begins a new transaction.
+     * Applies the changes of a transaction to the storage.
      */
-    CompletableFuture<Transaction> beginTransaction();
+    CompletableFuture<Void> applyTransactionChanges(Tuple tuple, Transaction txn);
+
 } 

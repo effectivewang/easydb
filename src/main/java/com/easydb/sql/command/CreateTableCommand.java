@@ -2,6 +2,7 @@ package com.easydb.sql.command;
 
 import com.easydb.core.Column;
 import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.core.Transaction;
 import com.easydb.storage.Storage;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -20,6 +21,11 @@ public class CreateTableCommand implements SqlCommand {
         TableMetadata metadata = new TableMetadata(tableName, columns);
         return storage.createTable(metadata)
             .thenApply(v -> 1); // Return 1 to indicate one table was created
+    }
+
+    @Override
+    public CompletableFuture<Object> execute(Storage storage, Transaction txn) {
+        return execute(storage);
     }
 
     @Override

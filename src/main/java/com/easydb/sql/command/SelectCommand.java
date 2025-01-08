@@ -4,6 +4,7 @@ import com.easydb.storage.Storage;
 import com.easydb.sql.result.ResultSet;
 import com.easydb.core.Column;
 import com.easydb.core.DataType;
+import com.easydb.core.Transaction;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -24,11 +25,16 @@ public class SelectCommand implements SqlCommand {
 
     @Override
     public CompletableFuture<Object> execute(Storage storage) {
-        return CompletableFuture.completedFuture(null);
+        return execute(storage, null);
     }
 
     @Override
     public SqlCommandType getType() {
         return SqlCommandType.SELECT;
+    }
+
+    @Override
+    public CompletableFuture<Object> execute(Storage storage, Transaction txn) {
+        throw new UnsupportedOperationException("Not implemented");
     }
 } 

@@ -13,25 +13,19 @@ public interface SqlEngine {
      */
     CompletableFuture<ResultSet> executeQuery(String sql);
 
+
     /**
      * Execute a SQL update that returns the number of affected rows.
      */
     CompletableFuture<Integer> executeUpdate(String sql);
 
+
     /**
      * Execute a SQL command.
      */
     CompletableFuture<Object> execute(SqlCommand command);
+    
 
-    /**
-     * Prepare a SQL statement for execution.
-     */
-    CompletableFuture<PreparedStatement> prepareStatement(String sql);
-
-    /**
-     * Begin a new transaction.
-     */
-    CompletableFuture<Transaction> beginTransaction();
 }
 
 /**

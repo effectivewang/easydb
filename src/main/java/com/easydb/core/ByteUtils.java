@@ -1,4 +1,4 @@
-package com.easydb.storage;
+package com.easydb.core;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

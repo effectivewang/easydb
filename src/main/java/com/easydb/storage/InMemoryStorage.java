@@ -3,11 +3,15 @@ package com.easydb.storage;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.index.HashIndex;
-import com.easydb.storage.transaction.Transaction;
+import com.easydb.core.Transaction;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicLong;
+import com.easydb.core.TupleId;
+import com.easydb.core.Tuple;
+import com.easydb.core.IsolationLevel;
 
 /**
  * In-memory implementation of the storage engine.
@@ -48,7 +52,8 @@ public class InMemoryStorage implements Storage {
                 .filter(tuple -> tuple.id().tableName().equals(metadata.tableName()))
                 .forEach(tuple -> {
                     String indexKey = buildIndexKey(metadata, tuple);
-                    indexMap.get(indexName).insert(indexKey, tuple.id()).join();
+                    Transaction txn = null;
+                    indexMap.get(indexName).insert(indexKey, tuple.id(), txn).join();
                 });
             
         });
@@ -64,22 +69,47 @@ public class InMemoryStorage implements Storage {
             tableTuples.put(tuple.id(), tuple);
 
             // Update indexes
-            if (metadata.indexes() != null) {
-                for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
-                    String indexName = indexEntry.getKey();
-                    IndexMetadata indexMetadata = indexEntry.getValue();
-                    HashIndex<String, TupleId> index = indexMap.get(indexName);
-                    
-                    if (index != null) {
-                        String indexKey = buildIndexKey(indexMetadata, tuple);
-                        index.insert(indexKey, tuple.id()).join();
-                    }
-                }
-            }
+            updateIndexes(metadata, tuple);
         });
     }
 
     @Override
+    public CompletableFuture<Void> insertTuple(Tuple tuple, Transaction txn) {
+        return CompletableFuture.runAsync(() -> {
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> applyTransactionChanges(Tuple tuple, Transaction txn) {
+        return CompletableFuture.runAsync(() -> {
+            // 1. Update base storage
+            tableTuples.put(tuple.id(), tuple);
+
+        // 2. Update indexes
+        TableMetadata metadata = tables.get(tuple.id().tableName());
+        if (metadata.indexes() != null) {
+            for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
+                String indexName = indexEntry.getKey();
+                IndexMetadata indexMetadata = indexEntry.getValue();
+                HashIndex<String, TupleId> index = indexMap.get(indexName);
+                
+                if (index != null) {
+                    String indexKey = buildIndexKey(indexMetadata, tuple);
+                    
+                    // Remove old index entry if exists
+                    Tuple oldTuple = tableTuples.get(tuple.id());
+                    if (oldTuple != null) {
+                        String oldIndexKey = buildIndexKey(indexMetadata, oldTuple);
+                        index.delete(oldIndexKey, txn).join();
+                    }
+
+                        // Insert new index entry
+                        index.insert(indexKey, tuple.id(), txn).join();
+                }
+            }
+        }});
+    }   
+
     public CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions) {
         return CompletableFuture.supplyAsync(() -> {
             TableMetadata metadata = tables.get(tableName);
@@ -102,7 +132,7 @@ public class InMemoryStorage implements Storage {
                         HashIndex<String, TupleId> index = indexMap.get(indexName);
                         
                         if (index != null) {
-                            CompletableFuture<TupleId> tupleIdFuture = index.search(indexKey);
+                            CompletableFuture<TupleId> tupleIdFuture = index.search(indexKey, null);
                             if (tupleIdFuture != null) {
                                 TupleId tupleId = tupleIdFuture.join();
                                 if (tupleId != null) {
@@ -125,6 +155,13 @@ public class InMemoryStorage implements Storage {
         });
     }
 
+    public CompletableFuture<List<Tuple>> findTuples(String tableName, Map<String, Object> conditions, Transaction txn) {
+        return CompletableFuture.supplyAsync(() -> {
+            // TODO: Implement findTuples for transactions
+            return Collections.emptyList();
+        });
+    }
+    
     private boolean matchesConditions(Tuple tuple, Map<String, Object> conditions, List<Class<?>> types) {
         if (conditions == null || conditions.isEmpty()) {
             return true;
@@ -161,6 +198,7 @@ public class InMemoryStorage implements Storage {
         
         return buildTypedKey(indexValues);
     }
+
     private String buildTypedKey(List<Object> values) {
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < values.size(); i++) {
@@ -180,6 +218,22 @@ public class InMemoryStorage implements Storage {
         return key.toString();
     }
 
+    private void updateIndexes(TableMetadata metadata, Tuple tuple) {
+        if (metadata.indexes() != null) {
+            for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
+                String indexName = indexEntry.getKey();
+                IndexMetadata indexMetadata = indexEntry.getValue();
+                HashIndex<String, TupleId> index = indexMap.get(indexName);
+                
+                if (index != null) {
+                    String indexKey = buildIndexKey(indexMetadata, tuple);
+                    Transaction txn = null;
+                    index.insert(indexKey, tuple.id(), txn).join();
+                }
+            }
+        }
+    }
+
     public CompletableFuture<TableMetadata> getTableMetadata(String tableName) {
         if (!tables.containsKey(tableName)) {
             throw new IllegalArgumentException("Table not found: " + tableName);
@@ -187,9 +241,6 @@ public class InMemoryStorage implements Storage {
 
         return CompletableFuture.completedFuture(tables.get(tableName));
     }
+     
+}
 
-    public CompletableFuture<Transaction> beginTransaction() {
-        // TODO: Implement transaction support
-        return CompletableFuture.completedFuture(null);
-    }
-} 

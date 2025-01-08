@@ -1,8 +1,8 @@
 package com.easydb.index;
 
+import com.easydb.core.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
-
 /**
  * Interface for index operations in EasyDB.
  */
@@ -14,7 +14,7 @@ public interface Index<K extends Comparable<K>, V> {
      * @param value The value to insert
      * @return A future that completes when the insertion is done
      */
-    CompletableFuture<Void> insert(K key, V value);
+    CompletableFuture<Void> insert(K key, V value, Transaction txn);
 
     /**
      * Search for a key in the index.
@@ -22,7 +22,7 @@ public interface Index<K extends Comparable<K>, V> {
      * @param key The key to search for
      * @return A future that completes with the value
      */
-    CompletableFuture<V> search(K key);
+    CompletableFuture<V> search(K key, Transaction txn);
 
     /**
      * Range search in the index.
@@ -39,7 +39,7 @@ public interface Index<K extends Comparable<K>, V> {
      * @param key The key to delete
      * @return A future that completes when the deletion is done
      */
-    CompletableFuture<Void> delete(K key);
+    CompletableFuture<Void> delete(K key, Transaction txn);
 
     /**
      * Clear the index.

@@ -5,7 +5,7 @@ import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.Instant;
-import com.easydb.storage.TupleId;
+import com.easydb.core.TupleId;
 import com.easydb.storage.metadata.IndexType;
 
 

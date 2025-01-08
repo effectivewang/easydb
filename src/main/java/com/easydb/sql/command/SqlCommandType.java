@@ -10,5 +10,6 @@ public enum SqlCommandType {
     DELETE,
     CREATE,
     DROP,
-    ALTER
+    ALTER,
+    TRANSACTION
 } 

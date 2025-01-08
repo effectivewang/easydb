@@ -1,6 +1,7 @@
 package com.easydb.sql.command;
 
 import com.easydb.storage.Storage;
+import com.easydb.core.Transaction;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -8,5 +9,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface SqlCommand {
     CompletableFuture<Object> execute(Storage storage);
+    CompletableFuture<Object> execute(Storage storage, Transaction txn);
     SqlCommandType getType();
 } 

@@ -2,9 +2,10 @@ package com.easydb.sql.command;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import com.easydb.core.Transaction;
 import com.easydb.storage.Storage;
-import com.easydb.storage.Tuple;
-import com.easydb.storage.TupleId;
+import com.easydb.core.Tuple;
+import com.easydb.core.TupleId;
 import com.easydb.storage.metadata.TableMetadata;
 /**
  * Represents a SQL INSERT command.
@@ -27,14 +28,19 @@ public class InsertCommand implements SqlCommand {
     }
 
     @Override
-    public CompletableFuture<Object> execute(Storage storage) {
+    public CompletableFuture<Object> execute(Storage storage) { 
+        return execute(storage, null);
+    }
+
+    @Override
+    public CompletableFuture<Object> execute(Storage storage, Transaction txn) {
         storage.getTableMetadata(tableName).join();
         return CompletableFuture.supplyAsync(() -> {
             CompletableFuture<Void>[] futures = new CompletableFuture[values.size()];
             for (int i = 0; i < values.size(); i++) {
                 List<Object> value = values.get(i);
                 Tuple tuple = new Tuple(TupleId.create(tableName), value);
-                futures[i] = storage.insertTuple(tuple);
+                futures[i] = storage.insertTuple(tuple, txn);
             }
             CompletableFuture.allOf(futures).join();
             return values.size();

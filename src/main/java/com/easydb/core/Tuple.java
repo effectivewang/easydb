@@ -1,4 +1,4 @@
-package com.easydb.storage;
+package com.easydb.core;
 
 import java.util.List;
 import java.util.Arrays;

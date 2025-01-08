@@ -27,6 +27,9 @@ java_library(
 java_library(
     name = "easydb-index",
     srcs = glob(["src/main/java/com/easydb/index/**/*.java"]),
+    deps = [
+        ":easydb-core",
+    ],
     javacopts = JAVA_OPTS,
 )
 
