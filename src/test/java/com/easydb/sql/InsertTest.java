@@ -1,14 +1,17 @@
 package com.easydb.sql;
 
 import com.easydb.storage.InMemoryStorage;
-import com.easydb.storage.Tuple;
-import com.easydb.storage.TupleId;
+import com.easydb.core.Tuple;
+import com.easydb.core.TupleId;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexType;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.core.Column;
 import com.easydb.core.DataType;
+import com.easydb.storage.transaction.TransactionManager;
+import com.easydb.storage.transaction.VersionStore;
+import com.easydb.storage.transaction.LockManager;
 import com.easydb.sql.command.SqlCommand;
 import com.easydb.sql.parser.InsertParser;
 import com.easydb.sql.result.ResultSet;
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,13 +28,20 @@ public class InsertTest {
     private InMemoryStorage storage;
     private InsertParser parser;
     private SqlParserFactory parserFactory;
-
+    private TransactionManager transactionManager;
+    private VersionStore versionStore;
+    private LockManager lockManager;
+    private AtomicLong globalTs;
     @BeforeEach
     void setUp() {
         storage = new InMemoryStorage();
-        sqlEngine = new DefaultSqlEngine(storage);
+        versionStore = new VersionStore();
+        lockManager = new LockManager();
+        globalTs = new AtomicLong(1);
+        transactionManager = new TransactionManager(storage, versionStore, globalTs, lockManager);
+        sqlEngine = new DefaultSqlEngine(storage, transactionManager);
         parser = new InsertParser(storage);
-        parserFactory = new SqlParserFactory(storage);
+        parserFactory = new SqlParserFactory(storage, transactionManager);
         String createTable = """
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY,

@@ -35,7 +35,9 @@ java_library(
 
 java_library(
     name = "easydb-storage",
-    srcs = glob(["src/main/java/com/easydb/storage/**/*.java"]),
+    srcs = glob(["src/main/java/com/easydb/storage/**/*.java", 
+                "src/main/java/com/easydb/storage/metadata/**/*.java",
+                "src/main/java/com/easydb/storage/transaction/**/*.java"]),
     deps = [
         ":easydb-core",
         ":easydb-index",
