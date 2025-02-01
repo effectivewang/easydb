@@ -1,57 +1,95 @@
 package com.easydb.sql.parser;
 
-import com.easydb.sql.command.CreateIndexCommand;
-import com.easydb.sql.command.SqlCommand;
-import com.easydb.storage.metadata.IndexType;
+import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.ParseTreeType;
+import com.easydb.index.IndexType;
+import com.easydb.sql.parser.token.Token;
+import com.easydb.sql.parser.token.TokenType;
 
-import java.util.Arrays;
+
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-public class CreateIndexParser implements SqlParser {
-    private static final Pattern INDEX_PATTERN = Pattern.compile(
-        "CREATE\\s+(UNIQUE\\s+)?INDEX\\s+(\\w+)\\s+ON\\s+(\\w+)\\s*\\(([^)]+)\\)(?:\\s+USING\\s+(HASH|BTREE|GIN))?",
-        Pattern.CASE_INSENSITIVE
-    );
+/**
+ * Parser for CREATE INDEX statements.
+ * Handles parsing of CREATE [UNIQUE] INDEX name ON table (columns) [USING method] statements.
+ */
+public class CreateIndexParser extends Parser {
+    
+    public CreateIndexParser(List<Token> tokens) {
+        super(tokens);
+    }
 
     @Override
-    public SqlCommand parse(String sql) {
-        Matcher matcher = INDEX_PATTERN.matcher(sql);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("Invalid CREATE INDEX syntax");
+    public ParseTree parse() {
+        // CREATE
+        consume(TokenType.CREATE, "Expected 'CREATE' at start of statement");
+        ParseTree createNode = new ParseTree(ParseTreeType.CREATE_INDEX_STATEMENT);
+
+        // Optional UNIQUE
+        boolean isUnique = match(TokenType.UNIQUE);
+        if (isUnique) {
+            createNode.addChild(new ParseTree(ParseTreeType.UNIQUE_CONSTRAINT));
         }
 
-        boolean isUnique = matcher.group(1) != null;
-        String indexName = matcher.group(2);
-        String tableName = matcher.group(3);
-        List<String> columnNames = parseColumnNames(matcher.group(4));
-        IndexType indexType = parseIndexType(matcher.group(5));
+        // INDEX
+        consume(TokenType.INDEX, "Expected 'INDEX'");
 
-        return new CreateIndexCommand(
-            indexName,
-            tableName,
-            columnNames,
-            isUnique,
-            indexType
-        );
-    }
+        // Index name
+        Token indexName = consume(TokenType.IDENTIFIER, "Expected index name");
+        ParseTree indexNameNode = new ParseTree(ParseTreeType.IDENTIFIER, indexName.value());
+        createNode.addChild(indexNameNode);
 
-    private List<String> parseColumnNames(String columnsStr) {
-        return Arrays.stream(columnsStr.split(","))
-            .map(String::trim)
-            .collect(Collectors.toList());
-    }
+        // ON
+        consume(TokenType.ON, "Expected 'ON' after index name");
 
-    private IndexType parseIndexType(String type) {
-        if (type == null || type.equalsIgnoreCase("HASH")) {
-            return IndexType.HASH;
-        } else if (type.equalsIgnoreCase("BTREE")) {
-            return IndexType.BTREE;
-        } else if (type.equalsIgnoreCase("GIN")) {
-            return IndexType.GIN;
+        // Table name
+        Token tableName = consume(TokenType.IDENTIFIER, "Expected table name");
+        ParseTree tableRef = new ParseTree(ParseTreeType.TABLE_REF, tableName.value());
+        createNode.addChild(tableRef);
+
+        // Column list
+        consume(TokenType.LEFT_PAREN, "Expected '(' after table name");
+        ParseTree columnList = parseColumnList();
+        createNode.addChild(columnList);
+
+        // Optional USING clause
+        ParseTree indexTypeNode = parseIndexType();
+        if (indexTypeNode != null) {
+            createNode.addChild(indexTypeNode);
         }
-        throw new IllegalArgumentException("Unsupported index type: " + type);
+
+        // Optional semicolon
+        match(TokenType.SEMICOLON);
+
+        return createNode;
+    }
+
+    private ParseTree parseColumnList() {
+        ParseTree columnList = new ParseTree(ParseTreeType.COLUMN_REF);
+        
+        do {
+            Token column = consume(TokenType.IDENTIFIER, "Expected column name");
+            columnList.addChild(new ParseTree(ParseTreeType.COLUMN_REF, column.value()));
+        } while (match(TokenType.COMMA));
+
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after column list");
+        return columnList;
+    }
+
+    private ParseTree parseIndexType() {
+        if (match(TokenType.USING)) {
+            Token type = consume(TokenType.IDENTIFIER, "Expected index type after USING");
+            String indexType = type.value().toUpperCase();
+            
+            // Validate index type
+            try {
+                Enum.valueOf(IndexType.class, indexType);
+            } catch (IllegalArgumentException e) {
+                throw error(type, "Invalid index type: " + indexType);
+            }
+            
+            return new ParseTree(ParseTreeType.INDEX_REF, indexType);
+        }
+        return null;
     }
 } 

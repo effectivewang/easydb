@@ -2,7 +2,7 @@ package com.easydb.storage.transaction;
 
 import com.easydb.storage.WriteAheadLog;
 import com.easydb.storage.Tuple;
-
+import com.easydb.storage.transaction.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +24,7 @@ public class TransactionManager {
 
     public Transaction beginTransaction() {
         Long transactionId = Instant.now().toEpochMilli();
-        Transaction transaction = new TransactionImpl(transactionId);
+        Transaction transaction = new Transaction(transactionId, IsolationLevel.READ_COMMITTED);
         activeTransactions.put(transactionId, transaction);
         transactionLocks.put(transactionId, Collections.synchronizedSet(new HashSet<>()));
         wal.logBegin(transactionId);
@@ -37,6 +37,11 @@ public class TransactionManager {
             Tuple tuple = entry.getValue();
             wal.logInsert(transaction.getId(), tuple.id().tableName(), tuple);
         }
+    }
+
+    public void commitTransaction(Transaction transaction) {
+        wal.logCommit(transaction.getId());
+        releaseAllLocks(transaction);
     }
 
     public void releaseAllLocks(Transaction transaction) {

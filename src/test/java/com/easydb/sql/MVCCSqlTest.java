@@ -3,6 +3,7 @@ package com.easydb.sql;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -12,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 class MVCCSqlTest {
     private SqlEngine sqlEngine;
 
-    /*
     @BeforeEach
     void setUp() {
         sqlEngine = SqlEngineFactory.create();
@@ -22,32 +22,33 @@ class MVCCSqlTest {
     @Test
     void testReadCommitted() throws ExecutionException, InterruptedException {
         // Start transaction 1 with READ COMMITTED isolation
-        Transaction tx1 = sqlEngine.beginTransaction().get();
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED").get();
-
+        Transaction tx1 = sqlEngine.beginTransaction(IsolationLevel.READ_COMMITTED);
         // Start transaction 2
-        Transaction tx2 = sqlEngine.beginTransaction().get();
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED").get();
+        Transaction tx2 = sqlEngine.beginTransaction(IsolationLevel.READ_COMMITTED);
 
         // Transaction 1 reads data
-        List<Map<String, Object>> result1 = sqlEngine.executeQuery(
-            "SELECT balance FROM accounts WHERE id = 1").get();
+        List<ResultSet> result1 = tx1.executeQuery("SELECT balance FROM accounts WHERE id = 1");
         int initialBalance = (Integer) result1.get(0).get("balance");
 
         // Transaction 2 updates and commits
-        sqlEngine.executeUpdate(
-            "UPDATE accounts SET balance = balance + 100 WHERE id = 1").get();
+        tx2.executeUpdate("UPDATE accounts SET balance = balance + 100 WHERE id = 1").get();
+        List<ResultSet> result2 = tx2.executeQuery("SELECT balance FROM accounts WHERE id = 1");
+        int uncommittedBalance = (Integer) result2.get(0).get("balance");
+        assertEquals(initialBalance + 100, uncommittedBalance);
+
+        result1 = tx1.executeQuery("SELECT balance FROM accounts WHERE id = 1");
+        assertEquals(initialBalance, (Integer) result1.get(0).get("balance"));
         tx2.commit().get();
 
         // Transaction 1 reads again - should see new data (no repeatable read)
-        result1 = sqlEngine.executeQuery(
-            "SELECT balance FROM accounts WHERE id = 1").get();
+        result1 = tx1.executeQuery("SELECT balance FROM accounts WHERE id = 1").get();
         int newBalance = (Integer) result1.get(0).get("balance");
 
         assertEquals(initialBalance + 100, newBalance);
         tx1.commit().get();
     }
 
+    /*
     @Test
     void testRepeatableRead() throws ExecutionException, InterruptedException {
         // Start transaction 1 with REPEATABLE READ isolation
@@ -171,6 +172,7 @@ class MVCCSqlTest {
         tx3.commit().get();
     }
 
+    */
     private void setupTestData() {
         try {
             // Create accounts table
@@ -193,5 +195,4 @@ class MVCCSqlTest {
             throw new RuntimeException("Failed to setup test data", e);
         }
     }
-         */
 } 

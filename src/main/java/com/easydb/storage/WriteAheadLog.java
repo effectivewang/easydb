@@ -9,12 +9,12 @@ public interface WriteAheadLog {
     /**
      * Logs a transaction commit.
      */
-    void logCommit(UUID transactionId);
+    void logCommit(Long transactionId);
 
     /**
      * Logs a transaction abort.
      */
-    void logAbort(UUID transactionId);
+    void logAbort(Long transactionId);
 
     /**
      * Logs a transaction begin.

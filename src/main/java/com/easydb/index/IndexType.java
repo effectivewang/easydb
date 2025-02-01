@@ -1,4 +1,4 @@
-package com.easydb.storage.metadata;
+package com.easydb.index;
 
 /**
  * Represents the type of index.

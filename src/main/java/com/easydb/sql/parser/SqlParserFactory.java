@@ -1,51 +1,47 @@
 package com.easydb.sql.parser;
 
-import com.easydb.sql.command.SqlCommand;
-import com.easydb.storage.Storage;
+import com.easydb.sql.parser.token.Token;
+import com.easydb.sql.parser.token.TokenType;
+import com.easydb.sql.parser.ParseTree;
+
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * Factory class for creating SQL statement parsers.
+ * Determines the appropriate parser based on the SQL statement type.
+ */
 public class SqlParserFactory {
-    private final CreateTableParser createTableParser;
-    private final CreateIndexParser createIndexParser;
-    private final InsertParser insertParser;
-    private final SelectParser selectParser;
-    private final Storage storage;
+    private final List<Parser> parsers;
 
-    public SqlParserFactory(Storage storage) {
-        this.storage = storage;
-        this.createTableParser = new CreateTableParser();
-        this.createIndexParser = new CreateIndexParser();
-        this.insertParser = new InsertParser(storage);
-        this.selectParser = new SelectParser();
+    public SqlParserFactory() {
+        this.parsers = new ArrayList<>();
     }
 
-    public SqlCommand parse(String sql) {        
-        if (sql.startsWith("CREATE TABLE")) {
-            return createTableParser.parse(sql);
-        } else if (sql.startsWith("CREATE INDEX")) {
-            return createIndexParser.parse(sql);
-        } else if (sql.startsWith("INSERT")) {
-            return insertParser.parse(sql);
-        } else if (sql.startsWith("SELECT")) {
-            return selectParser.parse(sql);
-        } 
+    /**
+     * Parse a SQL statement into a parse tree.
+     * 
+     * @param sql The SQL statement to parse
+     * @return The root node of the parse tree
+     * @throws ParseException if the SQL statement cannot be parsed
+     */
+    public ParseTree parse(String sql) {
+        Lexer lexer = new Lexer(sql);
+        List<com.easydb.sql.parser.token.Token> tokens = lexer.tokenize();
         
-        throw new IllegalArgumentException("Unsupported SQL command: " + sql);
+        switch (tokens.get(0).type()) {
+            case TokenType.CREATE:
+                if(tokens.get(1).type() == TokenType.INDEX) {
+                    return new CreateIndexParser(tokens).parse();
+                } else if(tokens.get(1).type() == TokenType.TABLE) {
+                    return new CreateTableParser(tokens).parse();
+                }
+            case TokenType.INSERT:
+                return new InsertParser(tokens).parse();
+            case TokenType.SELECT:
+                return new SelectParser(tokens).parse();
+            default:
+                throw new ParseException(tokens.get(0), "Unsupported SQL statement type");
+        }
     }
-
-    // Getters for individual parsers if needed
-    public CreateTableParser getCreateTableParser() {
-        return createTableParser;
-    }
-
-    public CreateIndexParser getCreateIndexParser() {
-        return createIndexParser;
-    }
-
-    public InsertParser getInsertParser() {
-        return insertParser;
-    }
-
-    public SelectParser getSelectParser() {
-        return selectParser;
-    }
-
 } 

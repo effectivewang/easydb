@@ -1,74 +1,89 @@
 package com.easydb.sql.parser;
 
-import com.easydb.sql.command.InsertCommand;
-import com.easydb.sql.command.SqlCommand;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import com.easydb.storage.Storage;
-import com.easydb.storage.metadata.TableMetadata;
-import com.easydb.core.Column;
+import com.easydb.sql.parser.token.Token;
+import com.easydb.sql.parser.token.TokenType;
+import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.ParseTreeType;
+
+import java.util.List;
 
 /**
- * Parser for SQL INSERT statements.
+ * Parser for INSERT statements.
+ * Handles parsing of INSERT INTO table VALUES (...) statements.
  */
-public class InsertParser implements SqlParser {
-    private static final Pattern INSERT_PATTERN = Pattern.compile(
-        "INSERT\\s+INTO\\s+(\\w+)\\s*\\((.*?)\\)\\s*VALUES\\s*\\((.*?)\\)",
-        Pattern.CASE_INSENSITIVE
-    );
-
-    private final Storage storage;
-
-    public InsertParser(Storage storage) {
-        this.storage = storage;
+public class InsertParser extends Parser {
+    public InsertParser(List<Token> tokens) {
+        super(tokens);
     }
 
     @Override
-    public SqlCommand parse(String sql) {
-        Matcher matcher = INSERT_PATTERN.matcher(sql.trim());
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("Invalid INSERT statement: " + sql);
+    public ParseTree parse() {
+        // INSERT
+        consume(TokenType.INSERT, "Expected 'INSERT' at start of statement");
+        ParseTree insertNode = new ParseTree(ParseTreeType.INSERT_STATEMENT);
+
+        // INTO
+        consume(TokenType.INTO, "Expected 'INTO' after 'INSERT'");
+
+        // Table name
+        Token tableName = consume(TokenType.IDENTIFIER, "Expected table name");
+        ParseTree tableRef = new ParseTree(ParseTreeType.TABLE_REF, tableName.value());
+        insertNode.addChild(tableRef);
+
+        // Optional column list
+        ParseTree columnList = null;
+        if (match(TokenType.LEFT_PAREN)) {
+            columnList = parseColumnList();
+            insertNode.addChild(columnList);
         }
 
-        String tableName = matcher.group(1).trim();
-        TableMetadata tableMetadata = storage.getTableMetadata(tableName).join();
-        List<String> columns = parseColumns(matcher.group(2));
-        List<List<Object>> values = parseValues(tableMetadata, columns, matcher.group(3));
+        // VALUES
+        consume(TokenType.VALUES, "Expected 'VALUES'");
+        ParseTree valuesList = parseValuesList();
+        insertNode.addChild(valuesList);
 
-        return new InsertCommand(tableName, columns, values);
+        // Semicolon (optional)
+        match(TokenType.SEMICOLON);
+
+        return insertNode;
     }
 
-    private List<String> parseColumns(String columnsStr) {
-        return Arrays.stream(columnsStr.split("\\s*,\\s*"))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .toList();
-    }
-
-    private List<List<Object>> parseValues(TableMetadata tableMetadata, List<String> columns, String valuesStr) {
-        List<List<Object>> result = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
+    private ParseTree parseColumnList() {
+        ParseTree columnList = new ParseTree(ParseTreeType.LIST);
         
-        String[] parts = valuesStr.split("\\s*,\\s*");
+        do {
+            Token column = consume(TokenType.IDENTIFIER, "Expected column name");
+            columnList.addChild(new ParseTree(ParseTreeType.COLUMN_REF, column.value()));
+        } while (match(TokenType.COMMA));
 
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i].trim();
-            String columnName = columns.get(i);
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after column list");
+        return columnList;
+    }
+
+    private ParseTree parseValuesList() {
+        ParseTree valuesList = new ParseTree(ParseTreeType.VALUES_CLAUSE);
+
+        do {
+            consume(TokenType.LEFT_PAREN, "Expected '('");
+            ParseTree valueList = new ParseTree(ParseTreeType.LIST);
             
-            // Remove quotes if present
-            if (part.startsWith("'") && part.endsWith("'")) {
-                part = part.substring(1, part.length() - 1);
-            }
-            
-            Column column = tableMetadata.columns().stream()
-                .filter(c -> c.name().equalsIgnoreCase(columnName))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Column " + columnName + " not found in table " + tableMetadata.tableName()));
-            values.add(column.parseValue(part));
+            do {
+                valueList.addChild(parseLiteral());
+            } while (match(TokenType.COMMA));
+
+            consume(TokenType.RIGHT_PAREN, "Expected ')'");
+            valuesList.addChild(valueList);
+        } while (match(TokenType.COMMA));
+
+        return valuesList;
+    }
+
+    private ParseTree parseLiteral() {
+        if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL)) {
+            return new ParseTree(ParseTreeType.LITERAL, previous().value());
+        } else if (match(TokenType.NULL)) {
+            return new ParseTree(ParseTreeType.NULL_EXPR);
         }
-        
-        result.add(values);
-        return result;
+        throw error(peek(), "Expected literal value");
     }
 } 

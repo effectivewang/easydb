@@ -10,15 +10,42 @@ import java.util.stream.Collectors;
 /**
  * Stores metadata about a table including its schema, indexes, and access patterns.
  */
-public record TableMetadata(
-    String tableName,
-    List<Column> columns,
-    Map<String, IndexMetadata> indexes,
-    Instant createdAt,
-    Instant lastAccessedAt,
-    long rowCount,
-    long sizeInBytes
-) {
+public class TableMetadata {
+    private final String tableName;
+    private final List<Column> columns;
+    private final Map<String, IndexMetadata> indexes;
+    private final Instant createdAt;
+    private final Instant lastAccessedAt;
+    private final long rowCount;
+    private final long sizeInBytes;
+
+    // Compact constructor for validation
+    public TableMetadata(String tableName, List<Column> columns, Map<String, IndexMetadata> indexes, Instant createdAt, Instant lastAccessedAt, long rowCount, long sizeInBytes)     {
+        if (tableName == null || tableName.isEmpty()) {
+            throw new IllegalArgumentException("Table name cannot be null or empty");
+        }
+        if (columns == null || columns.isEmpty()) {
+            throw new IllegalArgumentException("Columns cannot be null or empty");
+        }
+        if (indexes == null) {
+            indexes = new ConcurrentHashMap<>();
+        }
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (lastAccessedAt == null) {
+            lastAccessedAt = createdAt;
+        }
+        this.rowCount = rowCount;
+        this.sizeInBytes = sizeInBytes; 
+        this.columns = columns;
+        this.indexes = indexes;
+        this.createdAt = createdAt;
+        this.lastAccessedAt = lastAccessedAt;
+        this.tableName = tableName;
+    }
+
+    // Constructor with minimal parameters
     public TableMetadata(String tableName, List<Column> columns) {
         this(
             tableName,
@@ -78,8 +105,27 @@ public record TableMetadata(
 
     public List<String> columnNames() {
         return columns.stream()
-            .map(column -> column.name())
+            .map(Column::name)
             .collect(Collectors.toList());
     }
-    
+
+    public String tableName() {
+        return tableName;
+    }
+
+    public List<Column> columns() {
+        return columns;
+    }
+
+    public Map<String, IndexMetadata> indexes() {
+        return indexes;
+    }
+
+    public boolean hasIndex(String columnName) {
+        return indexes.containsKey(columnName);
+    }
+
+    public IndexMetadata getIndex(String columnName) {
+        return indexes.get(columnName);
+    }
 } 
