@@ -19,23 +19,28 @@ JAVA_OPTS = [
 ]
 
 java_library(
-    name = "easydb-core",
+    name = "core",
     srcs = glob(["src/main/java/com/easydb/core/**/*.java"]),
     javacopts = JAVA_OPTS,
 )
 
 java_library(
-    name = "easydb-index",
+    name = "index",
     srcs = glob(["src/main/java/com/easydb/index/**/*.java"]),
+    deps = [
+        ":core",
+    ],
     javacopts = JAVA_OPTS,
 )
 
 java_library(
-    name = "easydb-storage",
-    srcs = glob(["src/main/java/com/easydb/storage/**/*.java"]),
+    name = "storage",
+    srcs = glob(["src/main/java/com/easydb/storage/**/*.java", 
+                "src/main/java/com/easydb/storage/metadata/**/*.java",
+                "src/main/java/com/easydb/storage/transaction/**/*.java"]),
     deps = [
-        ":easydb-core",
-        ":easydb-index",
+        ":core",
+        ":index",
     ],
     javacopts = JAVA_OPTS,
 )
@@ -45,20 +50,20 @@ java_binary(
     srcs = glob(["src/main/java/com/easydb/*.java"]),
     main_class = "com.easydb.Main",
     deps = [
-        ":easydb-storage",
-        ":easydb-sql",
-        ":easydb-core",
+        ":storage",
+        ":sql",
+        ":core",
     ],
     javacopts = JAVA_OPTS,
 )
 
 java_library(
-    name = "easydb-sql",
+    name = "sql",
     srcs = glob(["src/main/java/com/easydb/sql/**/*.java"]),
     deps = [
-        ":easydb-core",
-        ":easydb-storage",
-        ":easydb-index",
+        ":core",
+        ":storage",
+        ":index",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_core_jackson_core",
         "@maven//:com_fasterxml_jackson_core_jackson_annotations",
@@ -77,10 +82,10 @@ java_test(
 
     ],
     deps = [
-        ":easydb-core",
-        ":easydb-storage",
-        ":easydb-sql",
-        ":easydb-index",
+        ":core",
+        ":storage",
+        ":sql",
+        ":index",
         "@maven//:org_junit_jupiter_junit_jupiter_api",
         "@maven//:org_junit_jupiter_junit_jupiter_engine",
         "@maven//:org_junit_platform_junit_platform_console",
@@ -88,6 +93,8 @@ java_test(
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_core_jackson_core",
         "@maven//:com_fasterxml_jackson_core_jackson_annotations",
+        "@maven//:org_mockito_mockito_core",
+        "@maven//:org_mockito_mockito_junit_jupiter",
     ],
     javacopts = JAVA_OPTS,
 ) 

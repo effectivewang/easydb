@@ -7,7 +7,6 @@ import com.easydb.storage.transaction.IsolationLevel;
 import com.easydb.sql.parser.ParseTree;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class DefaultSqlEngine implements SqlEngine {

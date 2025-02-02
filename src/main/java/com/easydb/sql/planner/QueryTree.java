@@ -45,6 +45,10 @@ public class QueryTree {
         return new ArrayList<>(outputColumns);
     }
 
+    public void addOutputColumn(String column) {
+        outputColumns.add(column);
+    }
+
     public double getEstimatedCost() {
         return estimatedCost;
     }

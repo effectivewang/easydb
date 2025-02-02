@@ -2,8 +2,8 @@ package com.easydb.sql.parser;
 
 import com.easydb.sql.parser.token.Token;
 import com.easydb.sql.parser.token.TokenType;
-import com.easydb.sql.parser.tree.ParseTree;
-import com.easydb.sql.parser.tree.ParseTreeType;
+import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.ParseTreeType;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
