@@ -1,6 +1,11 @@
 package com.easydb.sql.result;
 
 import com.easydb.core.Column;
+import com.easydb.storage.Storage;
+import com.easydb.storage.Tuple;
+import com.easydb.storage.metadata.TableMetadata;
+
+
 import java.util.*;
 
 /**
@@ -81,6 +86,23 @@ public class ResultSet {
 
         public ResultSet build() {
             return new ResultSet(columns, rows);
+        }
+
+        public ResultSet build(List<Tuple> tuples, Storage storage) {
+            tuples.forEach(tuple -> {
+                String tableName = tuple.id().tableName();
+                TableMetadata metadata = storage.getTableMetadata(tableName);
+                List<String> columns = metadata.columnNames();
+                List<Class<?>> columnTypes = metadata.columnTypes();
+                
+                Map<String, Object> values = new HashMap<>();
+                List<Object> tupleValues = tuple.getValues(columnTypes);
+                for (int i = 0; i < columns.size(); i++) {
+                    values.put(columns.get(i), tupleValues.get(i));
+                }
+                addRow(values);
+            });
+            return build();
         }
     }
 } 

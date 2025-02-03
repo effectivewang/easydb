@@ -1,8 +1,9 @@
-package com.easydb.sql.planner;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
-import com.easydb.storage.transaction.Transaction;
+import com.easydb.sql.planner.QueryTree;
+import com.easydb.sql.planner.QueryPredicate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +20,12 @@ import java.util.stream.Collectors;
 public class QueryExecutor {
     private final Storage storage;
     private final ExecutorService executorService;
-    private final Transaction transaction;
+    private final ExecutionContext executionContext;
     private static final int DEFAULT_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
-    public QueryExecutor(Storage storage, Transaction transaction) {
+    public QueryExecutor(Storage storage, ExecutionContext executionContext) {
         this.storage = storage;
-        this.transaction = transaction;
+        this.executionContext = executionContext;
         this.executorService = Executors.newWorkStealingPool(DEFAULT_PARALLELISM);
     }
 
@@ -33,18 +34,18 @@ public class QueryExecutor {
      * Handles parallel execution of independent operations while maintaining
      * transaction isolation.
      */
-    public List<Tuple> execute(QueryTree tree) {
+    public List<Tuple> execute(QueryTree tree, ExecutionContext executionContext) {
         try {
-            return executeNode(tree).join();
+            return executeNode(tree, executionContext).join();
         } finally {
             executorService.shutdown();
         }
     }
 
-    private CompletableFuture<List<Tuple>> executeNode(QueryTree node) {
+    private CompletableFuture<List<Tuple>> executeNode(QueryTree node, ExecutionContext executionContext) {
         // First, execute all child nodes in parallel
         List<CompletableFuture<List<Tuple>>> childResults = node.getChildren().stream()
-            .map(this::executeNode)
+            .map(child -> executeNode(child, executionContext))
             .collect(Collectors.toList());
 
         // Combine child results and process current node

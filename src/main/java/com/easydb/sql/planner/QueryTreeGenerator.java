@@ -2,7 +2,6 @@ package com.easydb.sql.planner;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.metadata.TableMetadata;
-import com.easydb.storage.transaction.Transaction;
 import com.easydb.index.Index;
 import com.easydb.index.HashIndex;
 import com.easydb.index.IndexType;
@@ -17,17 +16,14 @@ import java.util.concurrent.Executors;
 
 /**
  * Generates a query execution plan (QueryTree) from a parse tree.
- * Supports parallel execution and transaction management.
  */
 public class QueryTreeGenerator {
     private final Storage storage;
     private final ExecutorService executorService;
-    private final Transaction transaction;
     private static final int DEFAULT_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
-    public QueryTreeGenerator(Storage storage, Transaction transaction) {
+    public QueryTreeGenerator(Storage storage) {
         this.storage = storage;
-        this.transaction = transaction;
         this.executorService = Executors.newWorkStealingPool(DEFAULT_PARALLELISM);
     }
 

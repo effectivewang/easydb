@@ -2,23 +2,26 @@ package com.easydb.sql;
 
 import com.easydb.sql.result.ResultSet;
 import com.easydb.storage.InMemoryStorage;
+import com.easydb.storage.Tuple;
 import com.easydb.storage.transaction.Transaction;
 import com.easydb.storage.transaction.IsolationLevel;
 import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.SqlParserFactory;
+import com.easydb.sql.planner.QueryTree;
+import com.easydb.sql.executor.QueryExecutor;
+import com.easydb.sql.executor.ExecutionContext;
+import com.easydb.sql.planner.QueryTreeGenerator;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class DefaultSqlEngine implements SqlEngine {
     private final InMemoryStorage storage;
+    private final SqlParserFactory parserFactory;
 
     public DefaultSqlEngine(InMemoryStorage storage) {
         this.storage = storage;
-    }
-
-    @Override
-    public Object execute(ParseTree parseTree) {
-        throw new UnsupportedOperationException("Not implemented");
+        this.parserFactory = new SqlParserFactory();
     }
 
     @Override
@@ -38,6 +41,12 @@ public class DefaultSqlEngine implements SqlEngine {
 
     @Override
     public ResultSet executeQuery(String sql) {
-        throw new UnsupportedOperationException("Not implemented");
+        ExecutionContext executionContext = new ExecutionContext();
+        ParseTree parseTree = parserFactory.parse(sql);
+        QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
+        QueryTree queryTree = queryTreeGenerator.generate(parseTree);
+        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
+        List<Tuple> qTuples = queryExecutor.execute(queryTree, executionContext);
+        return new ResultSet.Builder().build(qTuples, storage);
     }
 } 

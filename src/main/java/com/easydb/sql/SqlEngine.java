@@ -19,11 +19,6 @@ public interface SqlEngine {
     Integer executeUpdate(String sql);
 
     /**
-     * Execute a SQL command.
-     */
-    Object execute(ParseTree parseTree);
-
-    /**
      * Prepare a SQL statement for execution.
      */
     PreparedStatement prepareStatement(String sql);
