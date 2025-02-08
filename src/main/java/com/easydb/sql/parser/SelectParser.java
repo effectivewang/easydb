@@ -83,11 +83,15 @@ public class SelectParser extends Parser {
         ParseTree expr = parseExpression();
 
         // Check for alias (AS keyword is optional)
-        if (match(TokenType.AS) || check(TokenType.IDENTIFIER)) {
+        if (match(TokenType.AS)) {
+            Token as = consume(TokenType.AS, "Expected 'AS' after expression");
             Token alias = consume(TokenType.IDENTIFIER, "Expected alias name");
             ParseTree aliasNode = new ParseTree(ParseTreeType.ALIAS, alias.value());
             aliasNode.addChild(expr);
             return aliasNode;
+        } else if (match(TokenType.IDENTIFIER)) {  
+            Token identifier = consume(TokenType.IDENTIFIER, "Expected identifier");
+            return new ParseTree(ParseTreeType.COLUMN_REF, identifier.value());
         }
 
         return expr;

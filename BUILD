@@ -98,3 +98,31 @@ java_test(
     ],
     javacopts = JAVA_OPTS,
 ) 
+
+java_test(
+    name = "debug",
+    srcs = ["src/test/java/com/easydb/sql/parser/CreateTableParserTest.java"],
+    use_testrunner = False,
+    main_class = "org.junit.platform.console.ConsoleLauncher",
+    args = [
+        "--select-package=com.easydb.sql",
+        "--details=verbose", 
+
+    ],
+    deps = [
+        ":core",
+        ":storage",
+        ":sql",
+        ":index",
+        "@maven//:org_junit_jupiter_junit_jupiter_api",
+        "@maven//:org_junit_jupiter_junit_jupiter_engine",
+        "@maven//:org_junit_platform_junit_platform_console",
+        "@maven//:org_junit_platform_junit_platform_launcher",
+        "@maven//:com_fasterxml_jackson_core_jackson_databind",
+        "@maven//:com_fasterxml_jackson_core_jackson_core",
+        "@maven//:com_fasterxml_jackson_core_jackson_annotations",
+        "@maven//:org_mockito_mockito_core",
+        "@maven//:org_mockito_mockito_junit_jupiter",
+    ],
+    javacopts = JAVA_OPTS,
+) 

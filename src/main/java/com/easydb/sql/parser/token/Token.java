@@ -25,4 +25,12 @@ public class Token {
     public int position() {
         return position;
     }
+
+    @Override
+    public String toString() {
+        return String.format("Token{type=%s, value='%s', position=%d}", 
+            type, 
+            value, 
+            position);
+    }
 } 

@@ -2,7 +2,7 @@ package com.easydb.sql.planner;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
-import com.easydb.storage.transaction.Transaction;
+import com.easydb.sql.executor.ExecutionContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import com.easydb.sql.planner.QueryTree;
 import com.easydb.sql.planner.QueryOperator;
 import com.easydb.sql.planner.QueryPredicate;
+import com.easydb.sql.executor.QueryExecutor;
 
 import com.easydb.storage.Tuple;
 import com.easydb.storage.TupleId;
@@ -30,15 +31,15 @@ class QueryExecutorTest {
     @Mock
     private Storage storage;
     
-    @Mock
-    private Transaction transaction;
+    @Mock               
+    private ExecutionContext executionContext;        
     
     private QueryExecutor executor;
     
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        executor = new QueryExecutor(storage, transaction);
+        executor = new QueryExecutor(storage, executionContext);
     }
     
     @Test

@@ -32,6 +32,7 @@ public class Lexer {
         KEYWORDS.put("OR", TokenType.OR);
         KEYWORDS.put("NOT", TokenType.NOT);
         KEYWORDS.put("NULL", TokenType.NULL);
+        KEYWORDS.put("UNIQUE", TokenType.UNIQUE);
         KEYWORDS.put("PRIMARY", TokenType.PRIMARY);
         KEYWORDS.put("KEY", TokenType.KEY);
         KEYWORDS.put("FOREIGN", TokenType.FOREIGN);

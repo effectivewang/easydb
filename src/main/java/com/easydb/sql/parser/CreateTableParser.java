@@ -8,6 +8,7 @@ import com.easydb.sql.parser.ParseTree;
 import com.easydb.sql.parser.ParseTreeType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,6 +118,7 @@ public class CreateTableParser extends Parser {
         } else if (match(TokenType.UNIQUE)) {
             return new ParseTree(ParseTreeType.UNIQUE_CONSTRAINT);
         }
+        System.out.println(Arrays.toString(this.tokens.toArray()) + " : " + match(TokenType.UNIQUE));
         throw error(peek(), "Expected constraint");
     }
 
