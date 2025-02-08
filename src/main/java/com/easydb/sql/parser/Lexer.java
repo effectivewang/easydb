@@ -28,6 +28,16 @@ public class Lexer {
         KEYWORDS.put("VALUES", TokenType.VALUES);
         KEYWORDS.put("FROM", TokenType.FROM);
         KEYWORDS.put("WHERE", TokenType.WHERE);
+        KEYWORDS.put("ORDER", TokenType.ORDER);
+        KEYWORDS.put("GROUP", TokenType.GROUP);
+        KEYWORDS.put(">", TokenType.GREATER_THAN);
+        KEYWORDS.put(">=", TokenType.GREATER_THAN_EQUALS);
+        KEYWORDS.put("<", TokenType.LESS_THAN);
+        KEYWORDS.put("<=", TokenType.LESS_THAN_EQUALS);
+        KEYWORDS.put("=", TokenType.EQUALS);
+        KEYWORDS.put("!=", TokenType.NOT_EQUALS);
+        KEYWORDS.put("BY", TokenType.BY);
+        KEYWORDS.put("AS", TokenType.AS);
         KEYWORDS.put("AND", TokenType.AND);
         KEYWORDS.put("OR", TokenType.OR);
         KEYWORDS.put("NOT", TokenType.NOT);

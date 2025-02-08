@@ -101,7 +101,7 @@ java_test(
 
 java_test(
     name = "debug",
-    srcs = ["src/test/java/com/easydb/sql/parser/CreateTableParserTest.java"],
+    srcs = ["src/test/java/com/easydb/sql/parser/SelectParserTest.java"],
     use_testrunner = False,
     main_class = "org.junit.platform.console.ConsoleLauncher",
     args = [

@@ -2,8 +2,6 @@ package com.easydb.sql.parser;
 
 import com.easydb.sql.parser.token.Token;
 import com.easydb.sql.parser.token.TokenType;
-import com.easydb.sql.parser.ParseTree;
-import com.easydb.sql.parser.ParseTreeType;
 
 import java.util.List;
 
@@ -84,7 +82,6 @@ public class SelectParser extends Parser {
 
         // Check for alias (AS keyword is optional)
         if (match(TokenType.AS)) {
-            Token as = consume(TokenType.AS, "Expected 'AS' after expression");
             Token alias = consume(TokenType.IDENTIFIER, "Expected alias name");
             ParseTree aliasNode = new ParseTree(ParseTreeType.ALIAS, alias.value());
             aliasNode.addChild(expr);

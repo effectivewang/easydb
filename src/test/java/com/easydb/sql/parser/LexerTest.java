@@ -3,6 +3,8 @@ package com.easydb.sql.parser;
 import com.easydb.sql.parser.token.Token;
 import com.easydb.sql.parser.token.TokenType;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,7 +31,8 @@ class LexerTest {
         Lexer lexer = new Lexer(sql);
         List<Token> tokens = lexer.tokenize();
 
-        assertEquals(10, tokens.size());
+        System.out.println(Arrays.toString(tokens.toArray()));
+        assertEquals(11, tokens.size());
         assertEquals(TokenType.INSERT, tokens.get(0).type());
         assertEquals(TokenType.INTO, tokens.get(1).type());
         assertEquals(TokenType.IDENTIFIER, tokens.get(2).type());

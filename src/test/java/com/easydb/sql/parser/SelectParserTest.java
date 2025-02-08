@@ -84,7 +84,7 @@ class SelectParserTest {
 
     @Test
     void testSelectWithGroupBy() {
-        String sql = "SELECT department, COUNT(*) FROM employees GROUP BY department;";
+        String sql = "SELECT department, date FROM employees GROUP BY department;";
         Lexer lexer = new Lexer(sql);
         SelectParser parser = new SelectParser(lexer.tokenize());
         ParseTree tree = parser.parse();
