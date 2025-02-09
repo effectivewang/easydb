@@ -125,7 +125,6 @@ public class CreateTableParser extends Parser {
     private List<Column> parseColumns(String columnDefinitions) {
         List<Column> columns = new ArrayList<>();
         Matcher columnMatcher = COLUMN_PATTERN.matcher(columnDefinitions);
-        int position = 0;
 
         while (columnMatcher.find()) {
             String name = columnMatcher.group(1);
@@ -139,8 +138,7 @@ public class CreateTableParser extends Parser {
                 isNotNull,
                 isPrimaryKey,
                 false,
-                null,
-                position++
+                null
             ));
         }
 

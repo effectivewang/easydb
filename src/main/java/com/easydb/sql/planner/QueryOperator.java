@@ -27,7 +27,8 @@ public enum QueryOperator {
     UNION("Union"),
     UNION_ALL("Union All"),
     INTERSECT("Intersect"),
-    EXCEPT("Except");
+    EXCEPT("Except"),
+    MODIFY("ModifyTable");
 
     private final String displayName;
 

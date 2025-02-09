@@ -63,9 +63,12 @@ public enum ParseTreeType {
     DOUBLE_TYPE,
 
     // Constraints
+    CONSTRAINTS,
+    TABLE_CONSTRAINTS,
     PRIMARY_KEY_CONSTRAINT,
     FOREIGN_KEY_CONSTRAINT,
     NOT_NULL_CONSTRAINT,
+    CHECK_CONSTRAINT,
     UNIQUE_CONSTRAINT,
 
     // Other

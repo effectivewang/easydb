@@ -20,4 +20,14 @@ public enum DataType {
     public Class<?> getJavaType() {
         return javaType;
     }
+
+    public static DataType parse(String typeLiteral) {
+        return switch (typeLiteral.toUpperCase()) {
+            case "INTEGER", "INT" -> DataType.INTEGER;
+            case "STRING", "VARCHAR", "TEXT" -> DataType.STRING;
+            case "BOOLEAN", "BOOL" -> DataType.BOOLEAN;
+            case "DOUBLE", "FLOAT" -> DataType.DOUBLE;
+            default -> throw new IllegalArgumentException("Unsupported data type: " + typeLiteral);
+        };
+    }
 } 

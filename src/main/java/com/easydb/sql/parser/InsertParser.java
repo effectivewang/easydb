@@ -79,8 +79,12 @@ public class InsertParser extends Parser {
     }
 
     private ParseTree parseLiteral() {
-        if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL)) {
-            return new ParseTree(ParseTreeType.LITERAL, previous().value());
+        if (match(TokenType.STRING_LITERAL)) {
+            return new ParseTree(ParseTreeType.STRING_TYPE, previous().value());
+        } else if (match(TokenType.INTEGER)) {
+            return new ParseTree(ParseTreeType.INTEGER_TYPE, previous().value());
+        } else if (match(TokenType.DOUBLE)) {
+            return new ParseTree(ParseTreeType.DOUBLE_TYPE, previous().value());
         } else if (match(TokenType.NULL)) {
             return new ParseTree(ParseTreeType.NULL_EXPR);
         }

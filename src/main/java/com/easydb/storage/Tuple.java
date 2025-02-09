@@ -1,6 +1,9 @@
 package com.easydb.storage;
 
 import java.util.List;
+
+import com.easydb.storage.metadata.TableMetadata;
+
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -27,6 +30,12 @@ public class Tuple {
 
     public List<Object> getValues(List<Class<?>> types) {
         return ByteUtils.deserializeValues(values, valueLengths, types);
+    }
+
+    public Object getValue(TableMetadata table, String columnName) {
+        List<Object> values = getValues(table.columnTypes());
+        int index = table.columnNames().indexOf(columnName);
+        return values.get(index);
     }
 
     public Tuple withUpdatedValues(List<Object> newValues) {

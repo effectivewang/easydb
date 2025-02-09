@@ -10,10 +10,13 @@ public class Column {
     private final boolean primaryKey;
     private final boolean autoIncrement;
     private final Object defaultValue;
-    private final int ordinalPosition;
+
+    public Column(String name, DataType type) {
+        this(name, type, true, false, false, null);
+    }
 
     public Column(String name, DataType type, boolean nullable, boolean primaryKey, 
-                 boolean autoIncrement, Object defaultValue, int ordinalPosition) {
+                 boolean autoIncrement, Object defaultValue) {
         if (name == null || type == null) {
             throw new IllegalArgumentException("Column name and type are required");
         }
@@ -23,7 +26,6 @@ public class Column {
         this.primaryKey = primaryKey;
         this.autoIncrement = autoIncrement;
         this.defaultValue = defaultValue;
-        this.ordinalPosition = ordinalPosition;
     }
 
     public String name() {
@@ -48,10 +50,6 @@ public class Column {
 
     public Object defaultValue() {
         return defaultValue;
-    }
-
-    public int ordinalPosition() {
-        return ordinalPosition;
     }
 
     public String toSqlDefinition() {

@@ -17,16 +17,6 @@ public interface SqlEngine {
      * Execute a SQL update that returns the number of affected rows.
      */
     Integer executeUpdate(String sql);
-
-    /**
-     * Prepare a SQL statement for execution.
-     */
-    PreparedStatement prepareStatement(String sql);
-
-    /**
-     * Begin a new transaction.
-     */
-    Transaction beginTransaction();
 }
 
 /**

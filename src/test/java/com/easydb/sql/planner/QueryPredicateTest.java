@@ -21,9 +21,6 @@ class QueryPredicateTest {
 
         QueryPredicate isNull = QueryPredicate.isNull("description");
         assertEquals("description IS NULL", isNull.toString());
-
-        QueryPredicate isNotNull = QueryPredicate.isNotNull("email");
-        assertEquals("email IS NOT NULL", isNotNull.toString());
     }
 
     @Test
@@ -51,7 +48,7 @@ class QueryPredicateTest {
         QueryPredicate pred = QueryPredicate.equals("age", 25);
         
         assertEquals(QueryPredicate.PredicateType.EQUALS, pred.getType());
-        assertEquals("age", pred.getColumn());
+        assertEquals("age", pred.getColumns().get(0));
         assertEquals(25, pred.getValue());
         assertTrue(pred.getSubPredicates().isEmpty());
     }

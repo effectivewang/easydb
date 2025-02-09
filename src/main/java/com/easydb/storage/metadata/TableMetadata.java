@@ -1,11 +1,14 @@
 package com.easydb.storage.metadata;
 
 import com.easydb.core.Column;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.Instant;
 import java.util.stream.Collectors;
+import com.easydb.storage.constraint.Constraint;
 
 /**
  * Stores metadata about a table including its schema, indexes, and access patterns.
@@ -14,13 +17,18 @@ public class TableMetadata {
     private final String tableName;
     private final List<Column> columns;
     private final Map<String, IndexMetadata> indexes;
+    private final List<Constraint> constriants;
     private final Instant createdAt;
     private final Instant lastAccessedAt;
     private final long rowCount;
     private final long sizeInBytes;
 
+    public TableMetadata(String tableName, List<Column> columns, Map<String, IndexMetadata> indexes,List<Constraint> constraints) {
+        this(tableName, columns, indexes, constraints, Instant.now(), Instant.now(), 0, 0);
+    }
+
     // Compact constructor for validation
-    public TableMetadata(String tableName, List<Column> columns, Map<String, IndexMetadata> indexes, Instant createdAt, Instant lastAccessedAt, long rowCount, long sizeInBytes)     {
+    public TableMetadata(String tableName, List<Column> columns, Map<String, IndexMetadata> indexes, List<Constraint> constraints, Instant createdAt, Instant lastAccessedAt, long rowCount, long sizeInBytes)     {
         if (tableName == null || tableName.isEmpty()) {
             throw new IllegalArgumentException("Table name cannot be null or empty");
         }
@@ -43,6 +51,7 @@ public class TableMetadata {
         this.createdAt = createdAt;
         this.lastAccessedAt = lastAccessedAt;
         this.tableName = tableName;
+        this.constriants = constraints;
     }
 
     // Constructor with minimal parameters
@@ -51,6 +60,7 @@ public class TableMetadata {
             tableName,
             columns,
             new ConcurrentHashMap<>(),
+            new ArrayList<>(),
             Instant.now(),
             Instant.now(),
             0L,
@@ -63,6 +73,7 @@ public class TableMetadata {
             tableName,
             columns,
             indexes,
+            constriants,
             createdAt,
             Instant.now(),
             rowCount,
@@ -75,6 +86,7 @@ public class TableMetadata {
             tableName,
             columns,
             indexes,
+            constriants,
             createdAt,
             lastAccessedAt,
             newRowCount,
@@ -90,6 +102,7 @@ public class TableMetadata {
             tableName,
             columns,
             newIndexes,
+            constriants,
             createdAt,
             lastAccessedAt,
             rowCount,
@@ -117,6 +130,10 @@ public class TableMetadata {
         return columns;
     }
 
+    public List<Constraint> constraints() {
+        return constriants;
+    }
+
     public Map<String, IndexMetadata> indexes() {
         return indexes;
     }
@@ -128,4 +145,6 @@ public class TableMetadata {
     public IndexMetadata getIndex(String columnName) {
         return indexes.get(columnName);
     }
+
+
 } 

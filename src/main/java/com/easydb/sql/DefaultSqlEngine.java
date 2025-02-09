@@ -6,11 +6,15 @@ import com.easydb.storage.Tuple;
 import com.easydb.storage.transaction.Transaction;
 import com.easydb.storage.transaction.IsolationLevel;
 import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.ParseTreeType;
 import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.sql.planner.QueryTree;
 import com.easydb.sql.executor.QueryExecutor;
 import com.easydb.sql.executor.ExecutionContext;
 import com.easydb.sql.planner.QueryTreeGenerator;
+import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.metadata.IndexMetadata;
+import com.easydb.sql.ddl.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,27 +30,67 @@ public class DefaultSqlEngine implements SqlEngine {
 
     @Override
     public Integer executeUpdate(String sql) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
+        ParseTree parseTree = parserFactory.parse(sql);
 
-    @Override
-    public PreparedStatement prepareStatement(String sql) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
+        // Handle DDL separately
+        if (isDDLStatement(parseTree)) {
+            return executeDDL(parseTree);
+        }
 
-    @Override
-    public Transaction beginTransaction() {
-        throw new UnsupportedOperationException("Not implemented");
+        QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
+        ExecutionContext executionContext = new ExecutionContext();
+        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
+        QueryTree queryTree = queryTreeGenerator.generate(parseTree);
+
+        System.out.println(queryTree.toString());
+        List<Tuple> tuples = queryExecutor.execute(queryTree, executionContext);
+        return tuples.size();
     }
 
     @Override
     public ResultSet executeQuery(String sql) {
         ExecutionContext executionContext = new ExecutionContext();
+        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
+        QueryTree queryTree = generaQueryTree(sql);
+
+        List<Tuple> qTuples = queryExecutor.execute(queryTree, executionContext);
+        return new ResultSet.Builder().build(qTuples, storage);
+    }
+
+    private QueryTree generaQueryTree(String sql) {
         ParseTree parseTree = parserFactory.parse(sql);
         QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
         QueryTree queryTree = queryTreeGenerator.generate(parseTree);
-        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
-        List<Tuple> qTuples = queryExecutor.execute(queryTree, executionContext);
-        return new ResultSet.Builder().build(qTuples, storage);
+        return queryTree;
+    }
+
+    private boolean isDDLStatement(ParseTree parseTree) {
+        return parseTree.getType() ==  ParseTreeType.CREATE_TABLE_STATEMENT ||
+               parseTree.getType() == ParseTreeType.CREATE_INDEX_STATEMENT;
+    }
+
+    private Integer executeDDL(ParseTree parseTree) {
+        switch (parseTree.getType()) {
+            case CREATE_TABLE_STATEMENT:
+                return executeCreateTable(parseTree);
+            case CREATE_INDEX_STATEMENT:
+                return executeCreateIndex(parseTree);
+            default:
+                throw new IllegalStateException("Unknown DDL statement");
+        }
+    }
+
+    private Integer executeCreateTable(ParseTree parseTree) {
+        // Direct execution without query plan
+        TableMetadata metadata = TableMetadataBuilder.fromParseTree(parseTree);
+        storage.createTable(metadata);
+        return 0; // Convention for DDL success
+    }
+
+    private Integer executeCreateIndex(ParseTree parseTree) {
+        // Direct execution without query plan
+        IndexMetadata metadata = IndexMetadataBuilder.fromParseTree(parseTree);
+        storage.createIndex(metadata);
+        return 0; // Convention for DDL success
     }
 } 

@@ -101,8 +101,8 @@ java_test(
 
 java_test(
     name = "debug",
-    srcs = ["src/test/java/com/easydb/sql/parser/SelectParserTest.java"],
-    use_testrunner = False,
+    srcs = ["src/test/java/com/easydb/sql/parser/InsertTest.java"],
+    use_testrunner = True,
     main_class = "org.junit.platform.console.ConsoleLauncher",
     args = [
         "--select-package=com.easydb.sql",

@@ -1,26 +1,39 @@
 package com.easydb.sql.planner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * Represents a predicate (filter condition) in a query plan.
- * Can be a simple comparison or a complex boolean expression.
+ * Represents predicates for different types of SQL operations.
+ * Supports SELECT, INSERT, UPDATE, and DELETE operations.
  */
 public class QueryPredicate {
     private final PredicateType type;
-    private final String column;
-    private final Object value;
+    private final String tableName;
+    private final List<String> columns;
+    private final List<List<Object>> valuesList;
     private final List<QueryPredicate> subPredicates;
 
+    // Constructor for comparison predicates (WHERE clause)
     private QueryPredicate(PredicateType type, String column, Object value, List<QueryPredicate> subPredicates) {
         this.type = type;
-        this.column = column;
-        this.value = value;
+        this.tableName = null;
+        this.columns = column != null ? List.of(column) : new ArrayList<>();
+        this.valuesList = Arrays.asList(Arrays.asList(value));
         this.subPredicates = subPredicates != null ? new ArrayList<>(subPredicates) : new ArrayList<>();
     }
 
-    // Factory methods for different types of predicates
+    // Constructor for DML operations (INSERT, UPDATE, DELETE)
+    public QueryPredicate(String tableName, List<String> columns, List<Object> valuesList, List<QueryPredicate> subPredicates) {
+        this.type = PredicateType.DML;
+        this.tableName = tableName;
+        this.columns = new ArrayList<>(columns);
+        this.valuesList = Arrays.asList(valuesList);
+        this.subPredicates = subPredicates;
+    }
+
+    // Factory methods for comparison predicates
     public static QueryPredicate equals(String column, Object value) {
         return new QueryPredicate(PredicateType.EQUALS, column, value, null);
     }
@@ -33,26 +46,11 @@ public class QueryPredicate {
         return new QueryPredicate(PredicateType.LESS_THAN, column, value, null);
     }
 
-    public static QueryPredicate lessThanEquals(String column, Object value) {
-        return new QueryPredicate(PredicateType.LESS_THAN_EQUALS, column, value, null);
-    }
-
     public static QueryPredicate greaterThan(String column, Object value) {
         return new QueryPredicate(PredicateType.GREATER_THAN, column, value, null);
     }
 
-    public static QueryPredicate greaterThanEquals(String column, Object value) {
-        return new QueryPredicate(PredicateType.GREATER_THAN_EQUALS, column, value, null);
-    }
-
-    public static QueryPredicate isNull(String column) {
-        return new QueryPredicate(PredicateType.IS_NULL, column, null, null);
-    }
-
-    public static QueryPredicate isNotNull(String column) {
-        return new QueryPredicate(PredicateType.IS_NOT_NULL, column, null, null);
-    }
-
+    // Factory methods for logical operations
     public static QueryPredicate and(List<QueryPredicate> predicates) {
         return new QueryPredicate(PredicateType.AND, null, null, predicates);
     }
@@ -62,9 +60,24 @@ public class QueryPredicate {
     }
 
     public static QueryPredicate not(QueryPredicate predicate) {
-        List<QueryPredicate> predicates = new ArrayList<>();
-        predicates.add(predicate);
-        return new QueryPredicate(PredicateType.NOT, null, null, predicates);
+        return new QueryPredicate(PredicateType.NOT, null, null, List.of(predicate));
+    }
+
+    public static QueryPredicate isNull(String columnName) {
+        return new QueryPredicate(PredicateType.IS_NULL, columnName, null, null);
+    }
+
+    // Factory methods for DML operations
+    public static QueryPredicate insert(String tableName, List<String> columns, List<Object> values) {
+        return new QueryPredicate(tableName, columns, values, null);
+    }
+
+    public static QueryPredicate update(String tableName, List<String> columns, List<Object> values, List<QueryPredicate> whereConditions) {
+        return new QueryPredicate(tableName, columns, values, whereConditions);
+    }
+
+    public static QueryPredicate delete(String tableName, List<QueryPredicate> whereConditions) {
+        return new QueryPredicate(tableName, new ArrayList<>(), null, whereConditions);
     }
 
     // Getters
@@ -72,12 +85,16 @@ public class QueryPredicate {
         return type;
     }
 
-    public String getColumn() {
-        return column;
+    public String getTableName() {
+        return tableName;
     }
 
-    public Object getValue() {
-        return value;
+    public List<String> getColumns() {
+        return new ArrayList<>(columns);
+    }
+
+    public List<List<Object>> getValues() {
+        return new ArrayList<>(valuesList);
     }
 
     public List<QueryPredicate> getSubPredicates() {
@@ -86,48 +103,64 @@ public class QueryPredicate {
 
     @Override
     public String toString() {
-        switch (type) {
-            case EQUALS:
-                return column + " = " + value;
-            case NOT_EQUALS:
-                return column + " != " + value;
-            case LESS_THAN:
-                return column + " < " + value;
-            case LESS_THAN_EQUALS:
-                return column + " <= " + value;
-            case GREATER_THAN:
-                return column + " > " + value;
-            case GREATER_THAN_EQUALS:
-                return column + " >= " + value;
-            case IS_NULL:
-                return column + " IS NULL";
-            case IS_NOT_NULL:
-                return column + " IS NOT NULL";
-            case AND:
-                return String.join(" AND ", subPredicates.stream().map(Object::toString).toList());
-            case OR:
-                return String.join(" OR ", subPredicates.stream().map(Object::toString).toList());
-            case NOT:
-                return "NOT (" + subPredicates.get(0) + ")";
-            default:
-                throw new IllegalStateException("Unexpected predicate type: " + type);
+        StringBuilder sb = new StringBuilder();
+        
+        if (type == PredicateType.DML) {
+            sb.append("table=").append(tableName);
+            if (!columns.isEmpty()) {
+                sb.append(", columns=").append(columns);
+            }
+            if (valuesList != null) {
+                sb.append(", values=").append(valuesList);
+            }
+        } else {
+            switch (type) {
+                case EQUALS:
+                    sb.append(columns.get(0)).append(" = ").append(valuesList.get(0));
+                    break;
+                case NOT_EQUALS:
+                    sb.append(columns.get(0)).append(" != ").append(valuesList.get(0));
+                    break;
+                case LESS_THAN:
+                    sb.append(columns.get(0)).append(" < ").append(valuesList.get(0));
+                    break;
+                case GREATER_THAN:
+                    sb.append(columns.get(0)).append(" > ").append(valuesList.get(0));
+                    break;
+                case AND:
+                    sb.append("AND ").append(subPredicates);
+                    break;
+                case OR:
+                    sb.append("OR ").append(subPredicates);
+                    break;
+                case NOT:
+                    sb.append("NOT ").append(subPredicates.get(0));
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported type: " + type);
+            }
         }
+        
+        return sb.toString();
     }
 
     /**
      * Types of predicates that can appear in a query plan.
      */
     public enum PredicateType {
+        // Comparison operators
         EQUALS,
         NOT_EQUALS,
         LESS_THAN,
-        LESS_THAN_EQUALS,
         GREATER_THAN,
-        GREATER_THAN_EQUALS,
         IS_NULL,
-        IS_NOT_NULL,
+        
+        // Logical operators
         AND,
         OR,
-        NOT
+        NOT,
+        
+        // DML operations
+        DML
     }
 } 

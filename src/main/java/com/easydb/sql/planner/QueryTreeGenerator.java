@@ -32,7 +32,7 @@ public class QueryTreeGenerator {
             case SELECT_STATEMENT:
                 return generateSelectTree(parseTree);
             case INSERT_STATEMENT:
-                throw new UnsupportedOperationException("Not Implemented!");
+                return generateInsertTree(parseTree);
             default:
                 throw new IllegalArgumentException("Unsupported statement type: " + parseTree.getType());
         }
@@ -247,7 +247,11 @@ public class QueryTreeGenerator {
 
     private boolean shouldUseIndexScan(TableMetadata metadata, QueryPredicate predicate) {
         // Check if there's an index that can be used for this predicate
-        String columnName = predicate.getColumn();
+        List<String> columnsList = predicate.getColumns();
+        if (columnsList.size() > 1) {
+            throw new IllegalArgumentException("Not supported: currently the INDEX_SCAN only support one column.");
+        }
+        String columnName = columnsList.get(0); // Only support 
         return metadata.hasIndex(columnName) && 
                metadata.getIndex(columnName).type().equals(IndexType.HASH);
     }
@@ -314,5 +318,48 @@ public class QueryTreeGenerator {
         throw new UnsupportedOperationException("Not Implemented!");
     }
     
-    
+    private QueryTree generateInsertTree(ParseTree parseTree) {
+        // Get table name
+        ParseTree tableRef = findChildOfType(parseTree, ParseTreeType.TABLE_REF);
+        if (tableRef == null) {
+            throw new IllegalArgumentException("Missing table name in INSERT statement");
+        }
+        String tableName = tableRef.getValue();
+
+        // Get column list
+        ParseTree columnList = findChildOfType(parseTree, ParseTreeType.LIST);
+        List<String> columns = new ArrayList<>();
+        if (columnList != null) {
+            for (ParseTree column : columnList.getChildren()) {
+                columns.add(column.getValue());
+            }
+        }
+
+        // Get values list
+        List<Object> valuesList = new ArrayList<>();
+        for(ParseTree child : parseTree.getChildren()) {
+            valuesList.add(child.getValue());
+        }
+
+        // Create output columns for result
+        List<String> outputColumns = new ArrayList<>();
+        outputColumns.add("affected_rows");
+
+        // Create INSERT operator node
+        QueryTree insertNode = new QueryTree(
+            QueryOperator.MODIFY,
+            QueryPredicate.insert(tableName, columns, valuesList),
+            outputColumns
+        );
+
+        // Set cost estimates
+        TableMetadata metadata = storage.getTableMetadata(tableName);
+        double baseCost = 1.0 * valuesList.size(); // Base cost for insertion
+        double indexCost = metadata.indexes() != null ? metadata.indexes().size() * 0.5 : 0; // Additional cost per index
+        insertNode.setEstimatedCost(baseCost + indexCost);
+        insertNode.setEstimatedRows(valuesList.size()); // INSERT returns number of affected rows
+
+        return insertNode;
+    }
+
 } 
