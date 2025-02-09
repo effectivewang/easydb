@@ -56,7 +56,7 @@ public class CreateTableParser extends Parser {
     }
 
     private ParseTree parseColumnDefinitions() {
-        ParseTree columnList = new ParseTree(ParseTreeType.LIST);
+        ParseTree columnList = new ParseTree(ParseTreeType.COLUMN_LIST);
         
         do {
             columnList.addChild(parseColumnDefinition());

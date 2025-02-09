@@ -28,6 +28,7 @@ public enum ParseTreeType {
     COLUMN_REF,
     TABLE_REF,
     INDEX_REF,
+    COLUMN_LIST,
     LITERAL,
     BINARY_EXPR,
     UNARY_EXPR,
@@ -63,7 +64,7 @@ public enum ParseTreeType {
     DOUBLE_TYPE,
 
     // Constraints
-    CONSTRAINTS,
+    CONSTRAINT_REF,
     TABLE_CONSTRAINTS,
     PRIMARY_KEY_CONSTRAINT,
     FOREIGN_KEY_CONSTRAINT,

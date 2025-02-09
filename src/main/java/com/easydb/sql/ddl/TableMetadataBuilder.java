@@ -30,16 +30,17 @@ public class TableMetadataBuilder {
 
         // Process columns
         List<Column> columns = new ArrayList<>();
-        Map<String, Constraint> constraints = new HashMap<>();
-        
+        List<Constraint> constraints = new ArrayList<>();
+        int constraintCounter = 0;
+
         for (ParseTree columnDef : columnList.getChildren()) {
             Column column = processColumnDefinition(columnDef);
             columns.add(column);
 
             // Handle column constraints
-            ParseTree constraintList = findChildOfType(columnDef, ParseTreeType.CONSTRAINTS);
+            ParseTree constraintList = findChildOfType(columnDef, ParseTreeType.CONSTRAINT_REF);
             // Handle constraints
-            ParseTree parentTree = findChildOfType(columnDef, ParseTreeType.CONSTRAINTS);
+            ParseTree parentTree = findChildOfType(columnDef, ParseTreeType.CONSTRAINT_REF);
             if (constraintList != null) {
                 for (ParseTree constraintDef : constraintList.getChildren()) {
                     String constraintName = generateConstraintName(tableName, column.name(), 
@@ -49,7 +50,7 @@ public class TableMetadataBuilder {
                         column.name(), constraintDef);
                     
                     if (constraint != null) {
-                        constraints.put(constraintName, constraint);
+                        constraints.add(constraint);
                     }
                 }
             }
@@ -66,7 +67,7 @@ public class TableMetadataBuilder {
                     constraintDef);
                 
                 if (constraint != null) {
-                    constraints.put(constraintName, constraint);
+                    constraints.add(constraint);
                 }
             }
         }
@@ -74,7 +75,7 @@ public class TableMetadataBuilder {
         return new TableMetadata(
             tableName,
             columns,
-            primaryKeyColumn,
+            new HashMap<>(),
             constraints
         );
     }
@@ -94,17 +95,13 @@ public class TableMetadataBuilder {
                     ForeignKeyConstraint.FKAction.NO_ACTION,
                     ForeignKeyConstraint.FKAction.NO_ACTION
                 );
-                
-            case NOT_NULL_CONSTRAINT:
-                return new NotNullConstraint(name, tableName, List.of(columnName));
-                
+
             case UNIQUE_CONSTRAINT:
                 return new UniqueConstraint(name, tableName, List.of(columnName));
                 
             case CHECK_CONSTRAINT:
-                ParseTree predicate = findChildOfType(constraintDef, ParseTreeType.PREDICATE);
-                return new CheckConstraint(name, tableName, List.of(columnName), 
-                    convertToQueryPredicate(predicate));
+                ParseTree predicate = findChildOfType(constraintDef, ParseTreeType.CHECK_CONSTRAINT);
+                return new CheckConstraint(name, tableName, List.of(columnName), new HashMap<>());
                 
             default:
                 throw new IllegalArgumentException("Unsupported constraint type: " + 
@@ -123,7 +120,7 @@ public class TableMetadataBuilder {
             case FOREIGN_KEY_CONSTRAINT:
                 ParseTree fkColumns = findChildOfType(constraintDef, ParseTreeType.COLUMN_LIST);
                 ParseTree refTable = findChildOfType(constraintDef, ParseTreeType.TABLE_REF);
-                ParseTree refColumns = findChildOfType(constraintDef, ParseTreeType.REF_COLUMN_LIST);
+                ParseTree refColumns = findChildOfType(constraintDef, ParseTreeType.COLUMN_LIST);
                 return new ForeignKeyConstraint(
                     name, tableName, extractColumnNames(fkColumns),
                     refTable.getValue(), extractColumnNames(refColumns),
@@ -148,7 +145,6 @@ public class TableMetadataBuilder {
             case PRIMARY_KEY_CONSTRAINT -> "pk";
             case FOREIGN_KEY_CONSTRAINT -> "fk";
             case UNIQUE_CONSTRAINT -> "uq";
-            case NOT_NULL_CONSTRAINT -> "nn";
             case CHECK_CONSTRAINT -> "ck";
             default -> "ct";
         };
@@ -178,5 +174,41 @@ public class TableMetadataBuilder {
             }
         }
         return null;
+    }
+
+    private static List<String> extractColumnNames(ParseTree columnList) {
+        if (columnList == null) {
+            return List.of();
+        }
+
+        List<String> columnNames = new ArrayList<>();
+        
+        switch (columnList.getType()) {
+            case COLUMN_LIST:
+                // For table-level constraints with explicit column lists
+                for (ParseTree columnRef : columnList.getChildren()) {
+                    if (columnRef.getType() == ParseTreeType.COLUMN_REF) {
+                        columnNames.add(columnRef.getValue());
+                    } else {
+                        columnNames.add(columnRef.getChild(0).getValue());
+                    }
+                }
+                break;
+            
+            case COLUMN_REF:
+                // For single column references
+                columnNames.add(columnList.getValue());
+                break;
+                        
+            default:
+                throw new IllegalArgumentException(
+                    "Unexpected parse tree node type for column list: " + columnList.getType());
+        }
+        
+        if (columnNames.isEmpty()) {
+            throw new IllegalArgumentException("No column names found in column list");
+        }
+        
+        return columnNames;
     }
 }
