@@ -91,7 +91,7 @@ public class UpdateParser extends Parser {
     }
 
     private ParseTree parseLiteral() {
-        if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL)) {
+        if (match(TokenType.STRING) || match(TokenType.INTEGER) || match(TokenType.DOUBLE) || match(TokenType.BOOLEAN)) {
             return new ParseTree(ParseTreeType.LITERAL, previous().value());
         } else if (match(TokenType.NULL)) {
             return new ParseTree(ParseTreeType.NULL_EXPR);

@@ -351,6 +351,7 @@ public class QueryTreeGenerator {
             QueryPredicate.insert(tableName, columns, valuesList),
             outputColumns
         );
+        
 
         // Set cost estimates
         TableMetadata metadata = storage.getTableMetadata(tableName);

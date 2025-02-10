@@ -260,11 +260,11 @@ public class SelectParser extends Parser {
     }
 
     private ParseTree parsePrimary() {
-        if (match(TokenType.NUMBER_LITERAL)) {
+        if (match(TokenType.INTEGER) || match(TokenType.DOUBLE) || match(TokenType.BOOLEAN)) {
             return new ParseTree(ParseTreeType.LITERAL, previous().value());
         }
 
-        if (match(TokenType.STRING_LITERAL)) {
+        if (match(TokenType.STRING)) {
             return new ParseTree(ParseTreeType.LITERAL, previous().value());
         }
 

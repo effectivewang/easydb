@@ -33,11 +33,11 @@ class InsertParserTest {
         assertEquals(2, valueList.getChildCount());
 
         ParseTree firstValue = valueList.getChild(0);
-        assertEquals(ParseTreeType.LITERAL, firstValue.getType());
+        assertEquals(ParseTreeType.STRING_TYPE, firstValue.getType());
         assertEquals("John", firstValue.getValue());
 
         ParseTree secondValue = valueList.getChild(1);
-        assertEquals(ParseTreeType.LITERAL, secondValue.getType());
+        assertEquals(ParseTreeType.INTEGER_TYPE, secondValue.getType());
         assertEquals("25", secondValue.getValue());
     }
 

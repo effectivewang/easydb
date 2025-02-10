@@ -11,7 +11,7 @@ public class ResultSetSerializationTest {
     @Test
     void testNullValues() {
         ResultSet.Builder builder = new ResultSet.Builder();
-        builder.addColumn(new Column("name", DataType.STRING, true, false, false, null, 0));
+        builder.addColumn(new Column("name", DataType.STRING));
         
         Map<String, Object> row = new HashMap<>();
         row.put("name", null);
@@ -26,7 +26,7 @@ public class ResultSetSerializationTest {
     @Test
     void testEscapeCharacters() {
         ResultSet.Builder builder = new ResultSet.Builder();
-        builder.addColumn(new Column("text", DataType.STRING, true, false, false, null, 0));
+        builder.addColumn(new Column("text", DataType.STRING));
         
         Map<String, Object> row = new HashMap<>();
         row.put("text", "Line 1\nLine 2\tTabbed\r\nWindows");
@@ -41,9 +41,9 @@ public class ResultSetSerializationTest {
     @Test
     void testMultipleColumns() {
         ResultSet.Builder builder = new ResultSet.Builder();
-        builder.addColumn(new Column("name", DataType.STRING, false, false, false, null, 0))
-               .addColumn(new Column("age", DataType.INTEGER, true, false, false, null, 1))
-               .addColumn(new Column("active", DataType.BOOLEAN, false, false, false, null, 2));
+        builder.addColumn(new Column("name", DataType.STRING))
+               .addColumn(new Column("age", DataType.INTEGER))
+               .addColumn(new Column("active", DataType.BOOLEAN));
         
         Map<String, Object> row = new HashMap<>();
         row.put("name", "John");

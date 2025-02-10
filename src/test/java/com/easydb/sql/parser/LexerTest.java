@@ -39,10 +39,10 @@ class LexerTest {
         assertEquals("users", tokens.get(2).value());
         assertEquals(TokenType.VALUES, tokens.get(3).type());
         assertEquals(TokenType.LEFT_PAREN, tokens.get(4).type());
-        assertEquals(TokenType.STRING_LITERAL, tokens.get(5).type());
+        assertEquals(TokenType.STRING, tokens.get(5).type());
         assertEquals("John", tokens.get(5).value());
         assertEquals(TokenType.COMMA, tokens.get(6).type());
-        assertEquals(TokenType.NUMBER_LITERAL, tokens.get(7).type());
+        assertEquals(TokenType.INTEGER, tokens.get(7).type());
         assertEquals("25", tokens.get(7).value());
         assertEquals(TokenType.RIGHT_PAREN, tokens.get(8).type());
         assertEquals(TokenType.SEMICOLON, tokens.get(9).type());

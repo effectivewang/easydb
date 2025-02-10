@@ -62,7 +62,8 @@ public enum ParseTreeType {
     STRING_TYPE,
     BOOLEAN_TYPE,
     DOUBLE_TYPE,
-
+    NULL_TYPE,
+    
     // Constraints
     CONSTRAINT_REF,
     TABLE_CONSTRAINTS,

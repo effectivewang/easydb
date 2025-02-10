@@ -46,8 +46,16 @@ public class QueryPredicate {
         return new QueryPredicate(PredicateType.LESS_THAN, column, value, null);
     }
 
+    public static QueryPredicate lessThanOrEquals(String column, Object value) {
+        return new QueryPredicate(PredicateType.LESS_THAN_OR_EQUALS, column, value, null);
+    }
+
     public static QueryPredicate greaterThan(String column, Object value) {
         return new QueryPredicate(PredicateType.GREATER_THAN, column, value, null);
+    }
+
+    public static QueryPredicate greaterThanOrEquals(String column, Object value) {
+        return new QueryPredicate(PredicateType.GREATER_THAN_OR_EQUALS, column, value, null);
     }
 
     // Factory methods for logical operations
@@ -152,7 +160,9 @@ public class QueryPredicate {
         EQUALS,
         NOT_EQUALS,
         LESS_THAN,
+        LESS_THAN_OR_EQUALS,
         GREATER_THAN,
+        GREATER_THAN_OR_EQUALS,
         IS_NULL,
         
         // Logical operators

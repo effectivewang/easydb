@@ -74,8 +74,6 @@ public enum TokenType {
     
     // Other
     IDENTIFIER,
-    STRING_LITERAL,
-    NUMBER_LITERAL,
     EOF;
 
     private final String symbol;

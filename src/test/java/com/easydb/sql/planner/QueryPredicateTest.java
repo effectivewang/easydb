@@ -25,7 +25,7 @@ class QueryPredicateTest {
 
     @Test
     void testCompoundPredicates() {
-        QueryPredicate age = QueryPredicate.greaterThanEquals("age", 18);
+        QueryPredicate age = QueryPredicate.greaterThanOrEquals("age", 18);
         QueryPredicate city = QueryPredicate.equals("city", "New York");
         
         QueryPredicate and = QueryPredicate.and(Arrays.asList(age, city));
@@ -49,7 +49,7 @@ class QueryPredicateTest {
         
         assertEquals(QueryPredicate.PredicateType.EQUALS, pred.getType());
         assertEquals("age", pred.getColumns().get(0));
-        assertEquals(25, pred.getValue());
+        assertEquals(25, pred.getValues().get(0));
         assertTrue(pred.getSubPredicates().isEmpty());
     }
 
@@ -60,8 +60,8 @@ class QueryPredicateTest {
         QueryPredicate and = QueryPredicate.and(Arrays.asList(age, city));
         
         assertEquals(QueryPredicate.PredicateType.AND, and.getType());
-        assertNull(and.getColumn());
-        assertNull(and.getValue());
+        assertNull(and.getColumns().get(0));
+        assertNull(and.getValues().get(0));
         assertEquals(2, and.getSubPredicates().size());
         assertEquals(age.toString(), and.getSubPredicates().get(0).toString());
         assertEquals(city.toString(), and.getSubPredicates().get(1).toString());

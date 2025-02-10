@@ -146,7 +146,7 @@ public class Lexer {
 
         // Trim the surrounding quotes.
         String value = input.substring(start + 1, position - 1);
-        addToken(TokenType.STRING_LITERAL, value);
+        addToken(TokenType.STRING, value);
     }
 
     private void number() {
@@ -160,7 +160,12 @@ public class Lexer {
             while (isDigit(peek())) advance();
         }
 
-        addToken(TokenType.NUMBER_LITERAL, input.substring(start, position));
+        String value = input.substring(start, position);
+        if (value.contains(".")) {
+            addToken(TokenType.DOUBLE, value);
+        } else {
+            addToken(TokenType.INTEGER, value);
+        }
     }
 
     private void identifier() {
