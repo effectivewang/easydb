@@ -377,6 +377,8 @@ public class QueryTreeGenerator {
                 return Boolean.parseBoolean(value.getValue());
             case DOUBLE_TYPE:
                 return Double.parseDouble(value.getValue());
+            case NULL_TYPE:
+                return null;
             default:
                 throw new IllegalArgumentException("Unsupported value type: " + value.getType());
         }

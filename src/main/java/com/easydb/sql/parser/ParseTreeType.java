@@ -23,7 +23,7 @@ public enum ParseTreeType {
     ORDER_BY_CLAUSE,
     VALUES_CLAUSE,
     SET_CLAUSE,
-
+    USING_CLAUSE,
     // Expressions
     COLUMN_REF,
     TABLE_REF,

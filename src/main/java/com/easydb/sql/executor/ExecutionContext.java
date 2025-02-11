@@ -16,7 +16,7 @@ public class ExecutionContext {
         this.transactions = new ConcurrentHashMap<>();
     }
 
-    public Transaction getCurrentTransaction() {
+    public Transaction getTransaction() {
         return currentTransaction;
     }
 

@@ -36,7 +36,7 @@ public class CreateIndexParser extends Parser {
 
         // Index name
         Token indexName = consume(TokenType.IDENTIFIER, "Expected index name");
-        ParseTree indexNameNode = new ParseTree(ParseTreeType.IDENTIFIER, indexName.value());
+        ParseTree indexNameNode = new ParseTree(ParseTreeType.INDEX_REF, indexName.value());
         createNode.addChild(indexNameNode);
 
         // ON
@@ -88,7 +88,7 @@ public class CreateIndexParser extends Parser {
                 throw error(type, "Invalid index type: " + indexType);
             }
             
-            return new ParseTree(ParseTreeType.INDEX_REF, indexType);
+            return new ParseTree(ParseTreeType.USING_CLAUSE, indexType);
         }
         return null;
     }

@@ -4,6 +4,7 @@ import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
 import com.easydb.sql.planner.QueryTree;
 import com.easydb.sql.planner.QueryPredicate;
+import com.easydb.sql.planner.InsertOperation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +64,8 @@ public class QueryExecutor {
 
     private List<Tuple> processOperator(QueryTree node, List<List<Tuple>> inputs) {
         switch (node.getOperator()) {
+            case INSERT:
+                return executeInsert(node, inputs);
             case SEQUENTIAL_SCAN:
                 return executeSequentialScan(node);
             case INDEX_SCAN:
@@ -80,6 +83,12 @@ public class QueryExecutor {
             default:
                 throw new IllegalStateException("Unsupported operator: " + node.getOperator());
         }
+    }
+
+    private List<Tuple> executeInsert(QueryTree node, List<List<Tuple>> inputs) {
+        InsertOperation operation = (InsertOperation) node.getOperation();
+        DMLExecutor dmlExecutor = new DMLExecutor(storage, executionContext);
+        return dmlExecutor.executeInsert(operation);
     }
 
     private List<Tuple> executeSequentialScan(QueryTree node) {

@@ -45,7 +45,7 @@ public class IndexMetadataBuilder {
 
         // Get index type (default to BTREE if not specified)
         IndexType indexType = IndexType.HASH;
-        ParseTree typeNode = findChildOfType(parseTree, ParseTreeType.INDEX_REF);
+        ParseTree typeNode = findChildOfType(parseTree, ParseTreeType.USING_CLAUSE);
         if (typeNode != null) {
             indexType = parseIndexType(typeNode.getValue());
         }

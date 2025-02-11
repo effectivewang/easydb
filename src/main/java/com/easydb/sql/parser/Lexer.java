@@ -30,6 +30,8 @@ public class Lexer {
         KEYWORDS.put("WHERE", TokenType.WHERE);
         KEYWORDS.put("ORDER", TokenType.ORDER);
         KEYWORDS.put("GROUP", TokenType.GROUP);
+        KEYWORDS.put("ON", TokenType.ON);
+        KEYWORDS.put("USING", TokenType.USING);
         KEYWORDS.put(">", TokenType.GREATER_THAN);
         KEYWORDS.put(">=", TokenType.GREATER_THAN_EQUALS);
         KEYWORDS.put("<", TokenType.LESS_THAN);

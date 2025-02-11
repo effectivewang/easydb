@@ -122,6 +122,18 @@ public class TableMetadata {
             .collect(Collectors.toList());
     }
 
+    public Column getColumn(String name) {
+        return columns.stream()
+            .filter(column -> column.name().equals(name))
+            .findFirst()
+            .orElse(null);
+    }
+    
+    public boolean hasColumn(String columnName) {
+        return columns.stream()
+            .anyMatch(column -> column.name().equals(columnName));
+    }
+
     public String tableName() {
         return tableName;
     }
