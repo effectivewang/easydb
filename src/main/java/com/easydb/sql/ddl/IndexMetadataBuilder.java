@@ -3,7 +3,6 @@ package com.easydb.sql.ddl;
 import com.easydb.index.IndexType;
 import com.easydb.sql.parser.ParseTree;
 import com.easydb.sql.parser.ParseTreeType;
-import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
 
 import java.util.*;

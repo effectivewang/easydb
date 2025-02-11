@@ -11,14 +11,14 @@ import java.util.List;
 public class QueryTree {
     private final QueryOperator operator;
     private final List<QueryTree> children;
-    private final QueryPredicate predicate;
+    private final Operation operation;
     private final List<String> outputColumns;
     private double estimatedCost;
     private long estimatedRows;
 
-    public QueryTree(QueryOperator operator, QueryPredicate predicate, List<String> outputColumns) {
+    public QueryTree(QueryOperator operator, Operation operation, List<String> outputColumns) {
         this.operator = operator;
-        this.predicate = predicate;
+        this.operation = operation;
         this.outputColumns = new ArrayList<>(outputColumns);
         this.children = new ArrayList<>();
         this.estimatedCost = 0;
@@ -37,8 +37,8 @@ public class QueryTree {
         return new ArrayList<>(children);
     }
 
-    public QueryPredicate getPredicate() {
-        return predicate;
+    public Operation getOperation() {
+        return operation;
     }
 
     public List<String> getOutputColumns() {
@@ -75,7 +75,7 @@ public class QueryTree {
     private void toString(StringBuilder sb, int indent) {
         sb.append("  ".repeat(indent))
           .append(operator)
-          .append(predicate != null ? " [" + predicate + "]" : "")
+          .append(operation != null ? " [" + operation + "]" : "")
           .append(" -> ")
           .append(outputColumns)
           .append(" (cost=")

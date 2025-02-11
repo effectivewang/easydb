@@ -118,7 +118,6 @@ public class CreateTableParser extends Parser {
         } else if (match(TokenType.UNIQUE)) {
             return new ParseTree(ParseTreeType.UNIQUE_CONSTRAINT);
         }
-        System.out.println(Arrays.toString(this.tokens.toArray()) + " : " + match(TokenType.UNIQUE));
         throw error(peek(), "Expected constraint");
     }
 

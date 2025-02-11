@@ -96,11 +96,11 @@ public class QueryExecutor {
         List<Tuple> results = new ArrayList<>();
         
         // Build phase
-        var buildTable = buildHashTable(left, node.getPredicate());
+        var buildTable = buildHashTable(left, (QueryPredicate)node.getOperation());
         
         // Probe phase
         for (Tuple probe : right) {
-            var matches = buildTable.get(extractJoinKey(probe, node.getPredicate()));
+            var matches = buildTable.get(extractJoinKey(probe, (QueryPredicate)node.getOperation()));
             if (matches != null) {
                 for (Tuple build : matches) {
                     results.add(mergeTuples(build, probe));
@@ -112,7 +112,7 @@ public class QueryExecutor {
     }
 
     private List<Tuple> executeFilter(QueryTree node, List<Tuple> input) {
-        QueryPredicate predicate = node.getPredicate();
+        QueryPredicate predicate = (QueryPredicate)node.getOperation();
         return input.stream()
             .filter(tuple -> evaluatePredicate(predicate, tuple))
             .collect(Collectors.toList());

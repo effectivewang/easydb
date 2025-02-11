@@ -247,11 +247,10 @@ public class QueryTreeGenerator {
 
     private boolean shouldUseIndexScan(TableMetadata metadata, QueryPredicate predicate) {
         // Check if there's an index that can be used for this predicate
-        List<String> columnsList = predicate.getColumns();
-        if (columnsList.size() > 1) {
-            throw new IllegalArgumentException("Not supported: currently the INDEX_SCAN only support one column.");
+        if (predicate.getColumn() == null) {
+            return false;
         }
-        String columnName = columnsList.get(0); // Only support 
+        String columnName = predicate.getColumn();
         return metadata.hasIndex(columnName) && 
                metadata.getIndex(columnName).type().equals(IndexType.HASH);
     }
@@ -334,33 +333,54 @@ public class QueryTreeGenerator {
                 columns.add(column.getValue());
             }
         }
-
-        // Get values list
-        List<Object> valuesList = new ArrayList<>();
-        for(ParseTree child : parseTree.getChildren()) {
-            valuesList.add(child.getValue());
+        // Get values list (multiple rows)
+        ParseTree valuesClause = findChildOfType(parseTree, ParseTreeType.VALUES_CLAUSE);
+        List<List<Object>> allValues = new ArrayList<>();
+        // Process each row of values
+        for (ParseTree valueList : valuesClause.getChildren()) {
+            List<Object> rowValues = new ArrayList<>();
+            for (ParseTree value : valueList.getChildren()) {
+                rowValues.add(parseValue(value));
+            }
+            allValues.add(rowValues);
         }
 
         // Create output columns for result
         List<String> outputColumns = new ArrayList<>();
         outputColumns.add("affected_rows");
 
-        // Create INSERT operator node
+        // Create INSERT operator node with InsertOperation
         QueryTree insertNode = new QueryTree(
-            QueryOperator.MODIFY,
-            QueryPredicate.insert(tableName, columns, valuesList),
+            QueryOperator.INSERT,
+            new InsertOperation(tableName, columns, allValues),
             outputColumns
         );
         
 
         // Set cost estimates
         TableMetadata metadata = storage.getTableMetadata(tableName);
-        double baseCost = 1.0 * valuesList.size(); // Base cost for insertion
+        double baseCost = 1.0 * allValues.size(); // Base cost for insertion
         double indexCost = metadata.indexes() != null ? metadata.indexes().size() * 0.5 : 0; // Additional cost per index
         insertNode.setEstimatedCost(baseCost + indexCost);
-        insertNode.setEstimatedRows(valuesList.size()); // INSERT returns number of affected rows
+        insertNode.setEstimatedRows(allValues.size()); // INSERT returns number of affected rows
 
         return insertNode;
     }
+
+    private Object parseValue(ParseTree value) {
+        switch (value.getType()) {
+            case INTEGER_TYPE:
+                return Integer.parseInt(value.getValue());
+            case STRING_TYPE:
+                return value.getValue();
+            case BOOLEAN_TYPE:
+                return Boolean.parseBoolean(value.getValue());
+            case DOUBLE_TYPE:
+                return Double.parseDouble(value.getValue());
+            default:
+                throw new IllegalArgumentException("Unsupported value type: " + value.getType());
+        }
+    }
+
 
 } 

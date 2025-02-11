@@ -48,8 +48,8 @@ class QueryPredicateTest {
         QueryPredicate pred = QueryPredicate.equals("age", 25);
         
         assertEquals(QueryPredicate.PredicateType.EQUALS, pred.getType());
-        assertEquals("age", pred.getColumns().get(0));
-        assertEquals(25, pred.getValues().get(0));
+        assertEquals("age", pred.getColumn());
+        assertEquals(25, pred.getValue());
         assertTrue(pred.getSubPredicates().isEmpty());
     }
 
@@ -60,8 +60,8 @@ class QueryPredicateTest {
         QueryPredicate and = QueryPredicate.and(Arrays.asList(age, city));
         
         assertEquals(QueryPredicate.PredicateType.AND, and.getType());
-        assertNull(and.getColumns().get(0));
-        assertNull(and.getValues().get(0));
+        assertNull(and.getColumn());
+        assertNull(and.getValue());
         assertEquals(2, and.getSubPredicates().size());
         assertEquals(age.toString(), and.getSubPredicates().get(0).toString());
         assertEquals(city.toString(), and.getSubPredicates().get(1).toString());

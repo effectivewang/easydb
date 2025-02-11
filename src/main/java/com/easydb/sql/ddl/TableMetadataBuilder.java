@@ -23,7 +23,7 @@ public class TableMetadataBuilder {
         String tableName = tableRef.getValue();
 
         // Get column definitions
-        ParseTree columnList = findChildOfType(parseTree, ParseTreeType.COLUMN_REF);
+        ParseTree columnList = findChildOfType(parseTree, ParseTreeType.COLUMN_LIST);
         if (columnList == null) {
             throw new IllegalArgumentException("Missing column definitions in CREATE TABLE statement");
         }
@@ -158,13 +158,24 @@ public class TableMetadataBuilder {
     }
     
     private static Column processColumnDefinition(ParseTree columnDef) {
-        String name = columnDef.getChild(0).getValue();
-        DataType type = parseDataType(columnDef.getChild(1).getValue());
+        String name = columnDef.getValue();
+        DataType type = parseDataType(columnDef.getChild(0).getType());
         return new Column(name, type);
     }
 
-    private static DataType parseDataType(String typeStr) {
-        return DataType.parse(typeStr);
+    private static DataType parseDataType(ParseTreeType type) {
+        switch (type) {
+            case INTEGER_TYPE:
+                return DataType.INTEGER;
+            case STRING_TYPE:
+                return DataType.STRING;
+            case BOOLEAN_TYPE:
+                return DataType.BOOLEAN;
+            case DOUBLE_TYPE:
+                return DataType.DOUBLE;
+            default:
+                throw new IllegalArgumentException("Unsupported data type: " + type);
+        }
     }
 
     private static ParseTree findChildOfType(ParseTree parent, ParseTreeType type) {

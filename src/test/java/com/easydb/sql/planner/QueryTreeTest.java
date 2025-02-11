@@ -12,7 +12,7 @@ class QueryTreeTest {
         QueryTree tree = new QueryTree(QueryOperator.SEQUENTIAL_SCAN, predicate, Arrays.asList("id", "name", "age"));
 
         assertEquals(QueryOperator.SEQUENTIAL_SCAN, tree.getOperator());
-        assertEquals(predicate, tree.getPredicate());
+        assertEquals(predicate, (QueryPredicate)tree.getOperation());
         assertEquals(Arrays.asList("id", "name", "age"), tree.getOutputColumns());
         assertTrue(tree.getChildren().isEmpty());
     }
