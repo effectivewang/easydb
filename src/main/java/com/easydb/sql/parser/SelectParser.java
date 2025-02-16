@@ -68,7 +68,7 @@ public class SelectParser extends Parser {
 
         do {
             if (match(TokenType.MULTIPLY)) {
-                selectList.addChild(new ParseTree(ParseTreeType.ASTERISK));
+                selectList.addChild(new ParseTree(ParseTreeType.STAR));
             } else {
                 selectList.addChild(parseSelectItem());
             }
@@ -260,12 +260,20 @@ public class SelectParser extends Parser {
     }
 
     private ParseTree parsePrimary() {
-        if (match(TokenType.INTEGER) || match(TokenType.DOUBLE) || match(TokenType.BOOLEAN)) {
-            return new ParseTree(ParseTreeType.LITERAL, previous().value());
+        if (match(TokenType.INTEGER)) {
+            return new ParseTree(ParseTreeType.INTEGER_TYPE, previous().value());
+        }
+
+        if (match(TokenType.DOUBLE)) {
+            return new ParseTree(ParseTreeType.DOUBLE_TYPE, previous().value());
+        }
+
+        if (match(TokenType.BOOLEAN)) {
+            return new ParseTree(ParseTreeType.BOOLEAN_TYPE, previous().value());
         }
 
         if (match(TokenType.STRING)) {
-            return new ParseTree(ParseTreeType.LITERAL, previous().value());
+            return new ParseTree(ParseTreeType.STRING_TYPE, previous().value());
         }
 
         if (match(TokenType.IDENTIFIER)) {

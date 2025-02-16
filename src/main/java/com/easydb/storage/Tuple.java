@@ -14,12 +14,14 @@ public class Tuple {
     private final TupleId id;
     private final byte[] values;
     private final List<Integer> valueLengths;
+    private final List<Object> rowValues;
 
     public Tuple(TupleId id, List<Object> rowValues) {
         this.id = id;
         this.valueLengths = rowValues.stream()
             .map(value -> ByteUtils.getSerializedLength(value))
             .collect(Collectors.toList());
+        this.rowValues = rowValues;
 
         this.values = ByteUtils.serializeValues(rowValues, valueLengths);
     }
@@ -36,6 +38,10 @@ public class Tuple {
         List<Object> values = getValues(table.columnTypes());
         int index = table.columnNames().indexOf(columnName);
         return values.get(index);
+    }
+
+    public Object getValue(int index) {
+        return rowValues.get(index);
     }
 
     public Tuple withUpdatedValues(List<Object> newValues) {

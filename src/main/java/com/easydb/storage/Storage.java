@@ -26,8 +26,12 @@ public interface Storage {
     /**
      * Finds tuples matching the specified conditions.
      */
-    List<Tuple> findTuples(String tableName, Map<String, Object> conditions);
+    List<Tuple> scanTuples(String tableName, Map<String, Object> conditions);
 
+    /**
+     * Retrieves tuples by their IDs.
+     */
+    List<Tuple> getTuples(List<TupleId> tupleIds);
 
     /**
      * Retrieves metadata for the specified table.

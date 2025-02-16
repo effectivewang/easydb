@@ -58,8 +58,8 @@ public class InMemoryStorage implements Storage {
         String tableName = tuple.id().tableName();
         TableMetadata metadata = tables.get(tableName);
         
-            // Store in primary storage
-            tableTuples.put(tuple.id(), tuple);
+        // Store in primary storage
+        tableTuples.put(tuple.id(), tuple);
 
         // Update indexes
         updateIndexes(metadata, tuple);
@@ -75,46 +75,26 @@ public class InMemoryStorage implements Storage {
     }
 
     @Override
-    public List<Tuple> findTuples(String tableName, Map<String, Object> conditions) {
+    public List<Tuple> scanTuples(String tableName, Map<String, Object> conditions) {
         TableMetadata metadata = tables.get(tableName);
         List<Class<?>> columnTypes = metadata.columnTypes();
 
-            // Try using index if conditions match
-            if (conditions != null && !conditions.isEmpty() && metadata.indexes() != null) {
-                for (Map.Entry<String, IndexMetadata> indexEntry : metadata.indexes().entrySet()) {
-                    String indexName = indexEntry.getKey();
-                    IndexMetadata indexMetadata = indexEntry.getValue();
-                    List<String> indexColumns = indexMetadata.columnNames();
-                    
-                    // Check if all indexed columns have conditions
-                    if (indexColumns.stream().allMatch(conditions::containsKey)) {
-                        List<Object> indexValues = indexColumns.stream()
-                            .map(conditions::get)
-                            .collect(Collectors.toList());
-                            
-                        String indexKey = buildTypedKey(indexValues);
-                        HashIndex<String, TupleId> index = indexMap.get(indexName);
-                        
-                        if (index != null) {
-                            CompletableFuture<TupleId> tupleIdFuture = index.search(indexKey);
-                            if (tupleIdFuture != null) {
-                                TupleId tupleId = tupleIdFuture.join();
-                                if (tupleId != null) {
-                                    Tuple tuple = tableTuples.get(tupleId);
-                                    if (tuple != null && matchesConditions(tuple, conditions, columnTypes)) {
-                                        return Collections.singletonList(tuple);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        System.out.println("Scanning table: " + tableName);
+        System.out.println("Conditions: " + conditions);
+        // Fall back to full scan
+        List<Tuple> tuples = tableTuples.values().stream()
+                .filter(tuple -> tuple.id().tableName().equals(tableName))
+                .filter(tuple -> matchesConditions(tuple, conditions, columnTypes))
+                .collect(Collectors.toList());
 
-            // Fall back to full scan
-            return tableTuples.values().stream()
-            .filter(tuple -> tuple.id().tableName().equals(tableName))
-            .filter(tuple -> matchesConditions(tuple, conditions, columnTypes))
+        System.out.println("Tuples: " + tuples);
+        return tuples;
+    }
+
+    @Override
+    public List<Tuple> getTuples(List<TupleId> tupleIds) {
+        return tupleIds.stream()
+            .map(tableTuples::get)
             .collect(Collectors.toList());
     }
 
@@ -128,14 +108,21 @@ public class InMemoryStorage implements Storage {
             .map(column -> column.name())
             .collect(Collectors.toList());
 
-        return conditions.entrySet().stream().allMatch(entry -> {
+        boolean matches = conditions.entrySet().stream().allMatch(entry -> {
             int columnIndex = columnNames.indexOf(entry.getKey());
             if (columnIndex == -1) {
                 return false;
             }
             Object value = values.get(columnIndex);
-            return entry.getValue().equals(value);
+            System.out.println("Value: " + value + "type: " + value.getClass());
+            System.out.println("Entry value: " + entry.getValue() + "type: " + entry.getValue().getClass());
+            boolean match = entry.getValue().equals(value);
+            System.out.println("Match: " + match);
+            return match;
         });
+
+        System.out.println("Matches: " + matches);
+        return matches;
     }
 
     private String buildIndexKey(IndexMetadata indexMetadata, Tuple tuple) {

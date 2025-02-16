@@ -88,7 +88,7 @@ public class InsertParser extends Parser {
         } else if (match(TokenType.BOOLEAN)) {
             return new ParseTree(ParseTreeType.BOOLEAN_TYPE, previous().value());
         } else if (match(TokenType.NULL)) {
-            return new ParseTree(ParseTreeType.NULL_EXPR);
+            return new ParseTree(ParseTreeType.NULL_TYPE);
         }
         throw error(peek(), "Expected literal value");
     }

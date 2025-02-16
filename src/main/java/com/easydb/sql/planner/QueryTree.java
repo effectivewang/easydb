@@ -1,7 +1,8 @@
 package com.easydb.sql.planner;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.List;  
+
 
 /**
  * Represents a node in the query execution plan.
@@ -10,17 +11,23 @@ import java.util.List;
  */
 public class QueryTree {
     private final QueryOperator operator;
-    private final List<QueryTree> children;
     private final Operation operation;
     private final List<String> outputColumns;
+    private final List<QueryTree> children;
+    private final List<RangeTableEntry> rangeTable;  // List of referenced tables
     private double estimatedCost;
     private long estimatedRows;
 
-    public QueryTree(QueryOperator operator, Operation operation, List<String> outputColumns) {
+    public QueryTree(
+            QueryOperator operator, 
+            Operation operation, 
+            List<String> outputColumns, 
+            List<RangeTableEntry> rangeTable) {
         this.operator = operator;
         this.operation = operation;
         this.outputColumns = new ArrayList<>(outputColumns);
         this.children = new ArrayList<>();
+        this.rangeTable = rangeTable != null ? new ArrayList<>(rangeTable) : new ArrayList<>();
         this.estimatedCost = 0;
         this.estimatedRows = 0;
     }
@@ -65,6 +72,10 @@ public class QueryTree {
         this.estimatedRows = rows;
     }
 
+    public List<RangeTableEntry> getRangeTable() {
+        return new ArrayList<>(rangeTable);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -75,7 +86,6 @@ public class QueryTree {
     private void toString(StringBuilder sb, int indent) {
         sb.append("  ".repeat(indent))
           .append(operator)
-          .append(operation != null ? " [" + operation + "]" : "")
           .append(" -> ")
           .append(outputColumns)
           .append(" (cost=")

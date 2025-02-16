@@ -8,49 +8,62 @@ import com.easydb.index.IndexType;
 import com.easydb.storage.Tuple;
 import com.easydb.sql.parser.ParseTree;
 import com.easydb.sql.parser.ParseTreeType;
-
+import com.easydb.sql.planner.operation.IndexScanOperation;
+import com.easydb.sql.planner.operation.SequentialScanOperation;
+import com.easydb.sql.planner.operation.ProjectOperation;
+import com.easydb.sql.planner.operation.InsertOperation;
+import com.easydb.sql.planner.operation.FilterOperation;
+import com.easydb.sql.planner.expression.ExpressionBuilder;
+import com.easydb.sql.planner.expression.Expression;
+import com.easydb.storage.metadata.IndexMetadata;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+import java.util.stream.Collectors;
 /**
  * Generates a query execution plan (QueryTree) from a parse tree.
  */
 public class QueryTreeGenerator {
     private final Storage storage;
     private final ExecutorService executorService;
+    private final ParseTreeAnalyzer parseAnalyzer;  // New component for parse analysis
+
     private static final int DEFAULT_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
     public QueryTreeGenerator(Storage storage) {
         this.storage = storage;
         this.executorService = Executors.newWorkStealingPool(DEFAULT_PARALLELISM);
+        this.parseAnalyzer = new ParseTreeAnalyzer(storage);
     }
 
     public QueryTree generate(ParseTree parseTree) {
+        QueryContext queryContext = parseAnalyzer.analyze(parseTree);
         switch (parseTree.getType()) {
             case SELECT_STATEMENT:
-                return generateSelectTree(parseTree);
+                return generateSelectTree(parseTree, queryContext);
             case INSERT_STATEMENT:
-                return generateInsertTree(parseTree);
+                return generateInsertTree(parseTree, queryContext);
             default:
                 throw new IllegalArgumentException("Unsupported statement type: " + parseTree.getType());
         }
     }
 
-    private QueryTree generateSelectTree(ParseTree parseTree) {
+    private QueryTree generateSelectTree(ParseTree parseTree, QueryContext queryContext) {
         QueryTree result = null;
         
         // Process FROM clause first to get base tables
         ParseTree fromClause = findChildOfType(parseTree, ParseTreeType.FROM_CLAUSE);
         if (fromClause != null) {
-            result = generateFromTree(fromClause);
+            result = generateFromTree(fromClause, queryContext);
         }
 
-        // Apply WHERE clause filters
+        // Apply WHERE clause filters and decide on index usage
         ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
         if (whereClause != null) {
-            result = addFilter(result, whereClause.getChild(0));
+            QueryPredicate predicate = generatePredicate(whereClause.getChild(0), queryContext);
+            result = optimizeAccessPath(result, predicate, queryContext);
         }
 
         // Handle GROUP BY
@@ -61,7 +74,7 @@ public class QueryTreeGenerator {
             // Apply HAVING filters
             ParseTree havingClause = findChildOfType(parseTree, ParseTreeType.HAVING_CLAUSE);
             if (havingClause != null) {
-                result = addFilter(result, havingClause.getChild(0));
+                result = addFilter(result, havingClause.getChild(0), queryContext);
             }
         }
 
@@ -80,68 +93,207 @@ public class QueryTreeGenerator {
         return result;
     }
 
-    private QueryTree generateFromTree(ParseTree fromClause) {
+    private QueryTree optimizeAccessPath(QueryTree scanNode, QueryPredicate predicate, QueryContext queryContext) {
+        if (scanNode.getOperator() != QueryOperator.SEQUENTIAL_SCAN) {
+            // Only optimize base table scans
+            return addFilter(scanNode, predicate, queryContext);
+        }
+
+        RangeTableEntry rte = queryContext.resolveColumn(scanNode.getOutputColumns().get(0));
+        TableMetadata metadata = rte.getMetadata();
+
+        // Check if we can use an index for this predicate
+        if (shouldUseIndexScan(metadata, predicate)) {
+            // Replace sequential scan with index scan
+            QueryTree indexScan = createIndexScan(metadata, rte.getTableName(), predicate, queryContext.getRangeTable());
+            return indexScan;
+        }
+
+        // Fall back to filter on sequential scan
+        return addFilter(scanNode, predicate, queryContext);
+    }
+
+    private boolean shouldUseIndexScan(TableMetadata metadata, QueryPredicate predicate) {
+        // Only consider simple equality predicates for index scans
+        if (predicate.getType() != QueryPredicate.PredicateType.EQUALS) {
+            return false;
+        }
+
+        String columnName = predicate.getColumn();
+        if (columnName == null) {
+            return false;
+        }
+
+        // Check if there's a usable index
+        return metadata.indexes().values().stream()
+            .anyMatch(index -> {
+                // For now, only consider single-column indexes
+                return index.columnNames().size() == 1 &&
+                       index.hasColumn(columnName) &&
+                       (index.type() == IndexType.HASH || 
+                        index.type() == IndexType.BTREE);
+            });
+    }
+
+    private QueryTree generateFromTree(ParseTree fromClause, QueryContext queryContext) {
         List<QueryTree> scans = new ArrayList<>();
-        
-        // Generate scan nodes for each table
+        List<RangeTableEntry> rangeTable = queryContext.getRangeTable();
+
+        // Create scan nodes using existing range table entries
         for (ParseTree tableRef : fromClause.getChildren()) {
             String tableName = getTableName(tableRef);
-            TableMetadata metadata = storage.getTableMetadata(tableName);
-            
-            // Choose between sequential scan and index scan
-            QueryTree scan = shouldUseIndexScan(metadata, null) ? 
-                createIndexScan(metadata, tableName, null) :
-                createSequentialScan(metadata, tableName);
-                
+            RangeTableEntry rte = findRangeTableEntry(rangeTable, tableName);
+            QueryTree scan = createSequentialScan(rte);
             scans.add(scan);
         }
 
-        // If there's only one table, return its scan
-        if (scans.size() == 1) {
-            return scans.get(0);
-        }
-
-        // Otherwise, create join trees
-        return createJoinTree(scans);
+        return scans.size() == 1 ? scans.get(0) : createJoinTree(scans, rangeTable);
+    }
+    private RangeTableEntry findRangeTableEntry(List<RangeTableEntry> rangeTable, String tableNameOrAlias) {
+        return rangeTable.stream()
+            .filter(rte -> tableNameOrAlias.equals(rte.getDisplayName()) || 
+                          tableNameOrAlias.equals(rte.getTableName()))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("Table not found in range table: " + tableNameOrAlias));
     }
 
+    private QueryTree createSequentialScan(RangeTableEntry rte) {
+        List<String> qualifiedColumns = rte.getMetadata().columnNames().stream()
+            .map(rte::getQualifiedName)
+            .collect(Collectors.toList());
 
-    private QueryTree createJoinTree(List<QueryTree> scans) {
+        return new QueryTree(
+            QueryOperator.SEQUENTIAL_SCAN,
+            new SequentialScanOperation(rte, null),  // No predicate initially
+            qualifiedColumns,
+            Arrays.asList(rte)
+        );
+    }
+
+    private QueryTree createIndexScan(
+            TableMetadata metadata, 
+            String tableName, 
+            QueryPredicate predicate, 
+            List<RangeTableEntry> rangeTable) {
+        
+        // Find the appropriate index for this predicate
+        IndexMetadata indexMetadata = findBestIndex(metadata, predicate);
+        if (indexMetadata == null) {
+            throw new IllegalStateException("No suitable index found for predicate");
+        }
+
+        // Split predicate into index condition and filter condition
+        QueryPredicate indexCondition = extractIndexCondition(predicate, indexMetadata);
+        QueryPredicate filterPredicate = extractRemainingPredicate(predicate, indexCondition);
+
+        // Find the RTE for this table
+        RangeTableEntry rte = findRangeTableEntry(rangeTable, tableName);
+
+        return new QueryTree(
+            QueryOperator.INDEX_SCAN,
+            new IndexScanOperation(rte, indexMetadata, indexCondition, filterPredicate),
+            metadata.columnNames(),
+            rangeTable
+        );
+    }
+
+    private IndexMetadata findBestIndex(TableMetadata metadata, QueryPredicate predicate) {
+        // Find an index that matches the predicate columns
+        return metadata.indexes().values().stream()
+            .filter(index -> isIndexUsable(index, predicate))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private boolean isIndexUsable(IndexMetadata index, QueryPredicate predicate) {
+        // For now, only consider single-column indexes and equality predicates
+        if (predicate.getPredicateType() != QueryPredicate.PredicateType.EQUALS) {
+            return false;
+        }
+
+        String columnName = predicate.getColumn();
+        return index.columnNames().size() == 1 &&
+               index.hasColumn(columnName) &&
+               (index.type() == IndexType.HASH || index.type() == IndexType.BTREE);
+    }
+
+    private QueryPredicate extractIndexCondition(QueryPredicate predicate, IndexMetadata indexMetadata) {
+        if (predicate.getPredicateType() == QueryPredicate.PredicateType.AND) {
+            // For compound predicates, extract the parts that can use the index
+            return predicate.getSubPredicates().stream()
+                .filter(subPred -> isIndexUsable(indexMetadata, subPred))
+                .findFirst()
+                .orElse(null);
+        }
+        
+        // For simple predicates, use it directly if it matches the index
+        return isIndexUsable(indexMetadata, predicate) ? predicate : null;
+    }
+
+    private QueryPredicate extractRemainingPredicate(QueryPredicate original, QueryPredicate indexCondition) {
+        if (original == indexCondition) {
+            return null;  // No remaining predicate
+        }
+        
+        if (original.getPredicateType() == QueryPredicate.PredicateType.AND) {
+            // Remove the index condition from AND predicate
+            List<QueryPredicate> remaining = original.getSubPredicates().stream()
+                .filter(subPred -> !subPred.equals(indexCondition))
+                .collect(Collectors.toList());
+            
+            if (remaining.isEmpty()) {
+                return null;
+            } else if (remaining.size() == 1) {
+                return remaining.get(0);
+            } else {
+                return QueryPredicate.and(remaining);
+            }
+        }
+        
+        return original;  // Keep original predicate if not used for index
+    }
+
+    private QueryTree createJoinTree(List<QueryTree> scans, List<RangeTableEntry> rangeTable) {
         // Start with the first two tables
-        QueryTree result = createHashJoin(scans.get(0), scans.get(1));
+        QueryTree result = createHashJoin(scans.get(0), scans.get(1), rangeTable);
         
         // Add remaining tables
         for (int i = 2; i < scans.size(); i++) {
-            result = createHashJoin(result, scans.get(i));
+            result = createHashJoin(result, scans.get(i), rangeTable);
         }
         
         return result;
     }
 
-    private QueryTree createHashJoin(QueryTree left, QueryTree right) {
-        // In a real implementation, we would determine join conditions and choose
-        // between different join algorithms (hash join, merge join, nested loop)
+    private QueryTree createHashJoin(QueryTree left, QueryTree right,  List<RangeTableEntry> rangeTable) {
+        List<String> combinedColumns = new ArrayList<>(left.getOutputColumns());
+        combinedColumns.addAll(right.getOutputColumns());
+
         QueryTree join = new QueryTree(
             QueryOperator.HASH_JOIN,
-            null,  // Join condition would go here
-            combineOutputColumns(left.getOutputColumns(), right.getOutputColumns())
+            null,
+            combinedColumns,
+            rangeTable  // Use complete range table
         );
         
         join.addChild(left);
         join.addChild(right);
         
-        // Set cost estimates
         estimateJoinCost(join);
-        
         return join;
     }
 
-    private QueryTree addFilter(QueryTree input, ParseTree filterExpr) {
-        QueryPredicate predicate = generatePredicate(filterExpr);
+    private QueryTree addFilter(QueryTree input, ParseTree filterExpr, QueryContext queryContext) {
+        QueryPredicate predicate = generatePredicate(filterExpr, queryContext);
+        return addFilter(input, predicate, queryContext);
+    }
+    
+    private QueryTree addFilter(QueryTree input, QueryPredicate predicate, QueryContext queryContext) {
         QueryTree filter = new QueryTree(
             QueryOperator.FILTER,
-            predicate,
-            input.getOutputColumns()
+            new FilterOperation(predicate, input.getRangeTable().get(0)),
+            input.getOutputColumns(),
+            input.getRangeTable()
         );
         filter.addChild(input);
         return filter;
@@ -153,7 +305,8 @@ public class QueryTreeGenerator {
         QueryTree sort = new QueryTree(
             QueryOperator.SORT,
             null,
-            input.getOutputColumns()
+            input.getOutputColumns(),
+            input.getRangeTable()
         );
         sort.addChild(input);
         return sort;
@@ -165,21 +318,47 @@ public class QueryTreeGenerator {
         QueryTree aggregate = new QueryTree(
             QueryOperator.HASH_AGGREGATE,
             null,
-            input.getOutputColumns()
+            input.getOutputColumns(),
+            input.getRangeTable()
         );
         aggregate.addChild(input);
         return aggregate;
     }
 
     private QueryTree addProjection(QueryTree input, ParseTree selectList) {
-        List<String> columns = extractProjectionColumns(selectList);
-        QueryTree projection = new QueryTree(
-            QueryOperator.PROJECT,
-            null,
-            columns
+        List<String> targetList = new ArrayList<>();
+        List<String> sourceColumns = new ArrayList<>();
+        List<Integer> columnIndexes = new ArrayList<>();
+        List<Expression> expressions = new ArrayList<>();
+
+        // Use ExpressionBuilder to process select items
+        for (ParseTree selectItem : selectList.getChildren()) {
+            ExpressionBuilder.processSelectItem(
+                selectItem,
+                input.getRangeTable(),
+                targetList,
+                sourceColumns,
+                columnIndexes,
+                expressions
+            );
+        }
+
+        ProjectOperation operation = new ProjectOperation(
+            targetList,
+            sourceColumns,
+            columnIndexes,
+            expressions,
+            input.getRangeTable()
         );
-        projection.addChild(input);
-        return projection;
+
+        QueryTree result = new QueryTree(
+            QueryOperator.PROJECT,
+            operation,
+            targetList,
+            input.getRangeTable()
+        );
+        result.addChild(input);
+        return result;
     }
     
     private List<String> extractProjectionColumns(ParseTree selectList) {
@@ -191,18 +370,18 @@ public class QueryTreeGenerator {
     }
     
 
-    private QueryPredicate generatePredicate(ParseTree expr) {
+    private QueryPredicate generatePredicate(ParseTree expr, QueryContext queryContext) {
         switch (expr.getType()) {
             case BINARY_EXPR:
-                return generateBinaryPredicate(expr);
+                return generateBinaryPredicate(expr, queryContext);
             case COLUMN_REF:
-                return generateColumnPredicate(expr);
+                return generateColumnPredicate(expr, queryContext);
             default:
                 throw new IllegalArgumentException("Unsupported expression type: " + expr.getType());
         }
     }
 
-    private QueryPredicate generateBinaryPredicate(ParseTree expr) {
+    private QueryPredicate generateBinaryPredicate(ParseTree expr, QueryContext queryContext) {
         ParseTree left = expr.getChild(0);
         ParseTree operator = expr.getChild(1);
         ParseTree right = expr.getChild(2);
@@ -210,13 +389,13 @@ public class QueryTreeGenerator {
         // Convert operator type to predicate type
         switch (operator.getType()) {
             case EQUALS_OPERATOR:
-                return QueryPredicate.equals(left.getValue(), right.getValue());
+                return QueryPredicate.equals(left.getValue(), parseValue(right));
             case NOT_EQUALS_OPERATOR:
-                return QueryPredicate.notEquals(left.getValue(), right.getValue());
+                return QueryPredicate.notEquals(left.getValue(), parseValue(right));
             case LESS_THAN_OPERATOR:
-                return QueryPredicate.lessThan(left.getValue(), right.getValue());
+                return QueryPredicate.lessThan(left.getValue(), parseValue(right));
             case GREATER_THAN_OPERATOR:
-                return QueryPredicate.greaterThan(left.getValue(), right.getValue());
+                return QueryPredicate.greaterThan(left.getValue(), parseValue(right));
             default:
                 throw new IllegalArgumentException("Unsupported operator type: " + operator.getType());
         }
@@ -245,24 +424,6 @@ public class QueryTreeGenerator {
         join.setEstimatedCost(left.getEstimatedCost() + right.getEstimatedCost() + join.getEstimatedRows());
     }
 
-    private boolean shouldUseIndexScan(TableMetadata metadata, QueryPredicate predicate) {
-        // Check if there's an index that can be used for this predicate
-        if (predicate.getColumn() == null) {
-            return false;
-        }
-        String columnName = predicate.getColumn();
-        return metadata.hasIndex(columnName) && 
-               metadata.getIndex(columnName).type().equals(IndexType.HASH);
-    }
-
-    private QueryTree createSequentialScan(TableMetadata metadata, String tableName) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    private QueryTree createIndexScan(TableMetadata metadata, String tableName, QueryPredicate predicate) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
     private String getTableName(ParseTree tableRef) {
         return tableRef.getType() == ParseTreeType.ALIAS ? 
             tableRef.getChild(0).getValue() : tableRef.getValue();
@@ -284,7 +445,7 @@ public class QueryTreeGenerator {
         return columns;
     }
 
-    private QueryPredicate generateColumnPredicate(ParseTree expr) {
+    private QueryPredicate generateColumnPredicate(ParseTree expr, QueryContext queryContext) {
         // This would handle column references in predicates
         return null;
     }
@@ -292,32 +453,8 @@ public class QueryTreeGenerator {
     public void shutdown() {
         executorService.shutdown();
     }
-
-    private List<Tuple> executeIndexScan(QueryTree node) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    public void executeCreateIndex(QueryTree node) {
-        String tableName = extractTableName(node);
-        String columnName = extractColumnName(node);
-        String indexType = extractIndexType(node);
-        
-        throw new UnsupportedOperationException("Not Implemented!");
-    }
-
-    private String extractTableName(QueryTree node) {
-        throw new UnsupportedOperationException("Not Implemented!");
-    }
-
-    private String extractColumnName(QueryTree node) {
-        throw new UnsupportedOperationException("Not Implemented!");
-    }
-
-    private String extractIndexType(QueryTree node) {
-        throw new UnsupportedOperationException("Not Implemented!");
-    }
     
-    private QueryTree generateInsertTree(ParseTree parseTree) {
+    private QueryTree generateInsertTree(ParseTree parseTree, QueryContext queryContext) {
         // Get table name
         ParseTree tableRef = findChildOfType(parseTree, ParseTreeType.TABLE_REF);
         if (tableRef == null) {
@@ -353,7 +490,8 @@ public class QueryTreeGenerator {
         QueryTree insertNode = new QueryTree(
             QueryOperator.INSERT,
             new InsertOperation(tableName, columns, allValues),
-            outputColumns
+            outputColumns,
+            queryContext.getRangeTable()
         );
         
 

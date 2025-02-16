@@ -7,14 +7,14 @@ import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.core.Column;
 import com.easydb.core.DataType;
-import com.easydb.sql.planner.InsertOperation;
+import com.easydb.sql.planner.operation.InsertOperation;
 import com.easydb.storage.transaction.Transaction;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import java.util.Arrays;
 /**
  * Dedicated executor for DML (Data Manipulation Language) operations.
  * Currently handles INSERT operations.
@@ -117,6 +117,7 @@ public class DMLExecutor {
                 case STRING -> value.toString();
                 case BOOLEAN -> value instanceof Boolean ? value : Boolean.valueOf(value.toString());
                 case DOUBLE -> value instanceof Double ? value : Double.valueOf(value.toString());
+                case NULL -> null;
                 default -> throw new IllegalArgumentException("Unsupported data type: " + targetType);
             };
         } catch (NumberFormatException e) {
@@ -127,12 +128,7 @@ public class DMLExecutor {
 
     private void validateConstraints(TableMetadata metadata, Tuple tuple) {
         // Check NOT NULL constraints
-        for (Column column : metadata.columns()) {
-            if (!column.nullable() && tuple.getValue(metadata, column.name()) == null) {
-                throw new IllegalArgumentException(
-                    "NULL value not allowed for column: " + column.name());
-            }
-        }
+
         
         // Check UNIQUE constraints (handled by storage layer)
     }

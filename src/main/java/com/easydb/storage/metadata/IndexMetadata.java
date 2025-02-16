@@ -33,6 +33,10 @@ public class IndexMetadata {
         return columnNames;
     }
 
+    public boolean hasColumn(String columnName) {
+        return columnNames.contains(columnName);
+    }
+
     public String tableName() {
         return tableName;
     }

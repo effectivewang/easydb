@@ -65,7 +65,7 @@ public class ConstraintValidator {
             .map(column -> getValue(values, columnList, column))
             .toList();
 
-        boolean exists = storage.findTuples(constraint.getTableName(), condition)
+        boolean exists = storage.scanTuples(constraint.getTableName(), condition)
             .stream()
             .anyMatch(existingTuple -> {
                 List<Object> existingPkValues = constraint.getColumns().stream()
@@ -101,7 +101,7 @@ public class ConstraintValidator {
         }
 
         // Check if referenced values exist in the parent table
-        boolean exists = storage.findTuples(constraint.getReferenceTable(), condition)
+        boolean exists = storage.scanTuples(constraint.getReferenceTable(), condition)
             .stream()
             .anyMatch(parentTuple -> {
                 List<Object> parentValues = constraint.getReferenceColumns().stream()
@@ -129,7 +129,7 @@ public class ConstraintValidator {
                 return value;
             }).toList();
 
-        boolean exists = storage.findTuples(constraint.getTableName(), condition)
+        boolean exists = storage.scanTuples(constraint.getTableName(), condition)
             .stream()
             .anyMatch(existingTuple -> {
                 List<Object> existingValues = constraint.getColumns().stream()

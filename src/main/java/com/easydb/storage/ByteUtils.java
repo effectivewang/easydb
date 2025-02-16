@@ -45,6 +45,11 @@ public class ByteUtils {
             Class<?> type = types.get(i);
             int length = valueLengths.get(i);
 
+            if (length == 0) {
+                values.add(null);
+                continue;
+            }
+
             if (type.equals(Long.class)) {
                 values.add(buffer.getLong());
             } else if (type.equals(Integer.class)) {

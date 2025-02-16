@@ -9,7 +9,8 @@ public enum DataType {
     DOUBLE(Double.class),
     STRING(String.class),
     BOOLEAN(Boolean.class),
-    BYTES(byte[].class);
+    BYTES(byte[].class),
+    NULL(Void.class);
 
     private final Class<?> javaType;
 
@@ -27,6 +28,7 @@ public enum DataType {
             case "STRING", "VARCHAR", "TEXT" -> DataType.STRING;
             case "BOOLEAN", "BOOL" -> DataType.BOOLEAN;
             case "DOUBLE", "FLOAT" -> DataType.DOUBLE;
+            case "NULL" -> DataType.NULL;
             default -> throw new IllegalArgumentException("Unsupported data type: " + typeLiteral);
         };
     }

@@ -4,12 +4,19 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
+import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.sql.planner.RangeTableEntry;
 
 class QueryTreeTest {
     @Test
     void testSimpleQueryTree() {
         QueryPredicate predicate = QueryPredicate.equals("age", 25);
-        QueryTree tree = new QueryTree(QueryOperator.SEQUENTIAL_SCAN, predicate, Arrays.asList("id", "name", "age"));
+        QueryTree tree = new QueryTree(
+            QueryOperator.SEQUENTIAL_SCAN, 
+            predicate, 
+            Arrays.asList("id", "name", "age"), 
+            Arrays.asList(new RangeTableEntry("users", null, new TableMetadata(Arrays.asList("id", "name", "age")), 1))
+        );
 
         assertEquals(QueryOperator.SEQUENTIAL_SCAN, tree.getOperator());
         assertEquals(predicate, (QueryPredicate)tree.getOperation());
@@ -68,7 +75,8 @@ class QueryTreeTest {
         QueryTree usersScan = new QueryTree(
             QueryOperator.SEQUENTIAL_SCAN,
             QueryPredicate.greaterThan("age", 18),
-            Arrays.asList("id", "name", "age")
+            Arrays.asList("id", "name", "age"),
+            Arrays.asList(new RangeTableEntry("users", null, new TableMetadata(Arrays.asList("id", "name", "age")), 1))
         );
         usersScan.setEstimatedRows(1000);
         usersScan.setEstimatedCost(100.0);
@@ -76,7 +84,8 @@ class QueryTreeTest {
         QueryTree ordersScan = new QueryTree(
             QueryOperator.INDEX_SCAN,
             QueryPredicate.equals("status", "pending"),
-            Arrays.asList("id", "user_id", "total")
+            Arrays.asList("id", "user_id", "total"),
+            Arrays.asList(new RangeTableEntry("orders", null, new TableMetadata(Arrays.asList("id", "user_id", "total")), 2))
         );
         ordersScan.setEstimatedRows(500);
         ordersScan.setEstimatedCost(50.0);

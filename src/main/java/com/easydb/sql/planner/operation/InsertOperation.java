@@ -1,9 +1,11 @@
-package com.easydb.sql.planner;
+package com.easydb.sql.planner.operation;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import com.easydb.sql.planner.Operation;
+import com.easydb.sql.planner.QueryOperator;
 
 /**
  * Represents an INSERT operation in the query plan.

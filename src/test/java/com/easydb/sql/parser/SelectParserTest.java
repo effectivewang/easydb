@@ -22,7 +22,7 @@ class SelectParserTest {
         ParseTree selectList = tree.getChild(0);
         assertEquals(ParseTreeType.SELECT_LIST, selectList.getType());
         assertEquals(1, selectList.getChildCount());
-        assertEquals(ParseTreeType.ASTERISK, selectList.getChild(0).getType());
+        assertEquals(ParseTreeType.STAR, selectList.getChild(0).getType());
 
         // Check FROM clause
         ParseTree fromClause = tree.getChild(1);

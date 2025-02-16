@@ -43,7 +43,7 @@ public class DefaultSqlEngine implements SqlEngine {
         QueryTree queryTree = queryTreeGenerator.generate(parseTree);
 
         System.out.println(queryTree.toString());
-        List<Tuple> tuples = queryExecutor.execute(queryTree, executionContext);
+        List<Tuple> tuples = queryExecutor.execute(queryTree);
         return tuples.size();
     }
 
@@ -53,7 +53,7 @@ public class DefaultSqlEngine implements SqlEngine {
         QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
         QueryTree queryTree = generaQueryTree(sql);
 
-        List<Tuple> qTuples = queryExecutor.execute(queryTree, executionContext);
+        List<Tuple> qTuples = queryExecutor.execute(queryTree);
         return new ResultSet.Builder().build(qTuples, storage);
     }
 

@@ -30,9 +30,11 @@ public enum ParseTreeType {
     INDEX_REF,
     COLUMN_LIST,
     LITERAL,
+    CONSTANT,
     BINARY_EXPR,
     UNARY_EXPR,
     FUNCTION_CALL,
+    ARITHMETIC_EXPR,
     SUBQUERY,
     CASE_EXPR,
     BETWEEN_EXPR,
@@ -78,7 +80,8 @@ public enum ParseTreeType {
     ALIAS,
     PARAMETER,
     LIST,
-    ASTERISK,
+    STAR,           // Represents '*' symbol in "SELECT *" (all columns)
+    QUALIFIED_STAR, // Represents 'table.*' (all columns from specific table)
     ERROR,
     ASSIGNMENT
 } 
