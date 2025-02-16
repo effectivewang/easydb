@@ -86,6 +86,9 @@ public class QueryTree {
     private void toString(StringBuilder sb, int indent) {
         sb.append("  ".repeat(indent))
           .append(operator)
+          .append("(")
+          .append(operation == null ? "null" : operation)
+          .append(")")  
           .append(" -> ")
           .append(outputColumns)
           .append(" (cost=")

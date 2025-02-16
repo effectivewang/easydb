@@ -216,6 +216,7 @@ class QueryTreeTest {
         scan.setEstimatedRows(1000);
 
         String output = scan.toString();
+        System.out.println(output);
         assertTrue(output.contains("Seq Scan"));
         assertTrue(output.contains("age = 25"));
         assertTrue(output.contains("[id, name, age]"));

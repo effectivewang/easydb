@@ -96,7 +96,7 @@ class InsertParserTest {
         ParseTree values = tree.getChild(2);
         ParseTree valueList = values.getChild(0);
         assertEquals(2, valueList.getChildCount());
-        assertEquals(ParseTreeType.NULL_EXPR, valueList.getChild(1).getType());
+        assertEquals(ParseTreeType.NULL_TYPE, valueList.getChild(1).getType());
     }
 
     @Test

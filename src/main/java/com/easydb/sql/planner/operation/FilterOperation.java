@@ -37,4 +37,6 @@ public class FilterOperation implements Operation {
     public String toString() {
         return String.format("Filter (%s)", predicate);
     }
+
+    
 } 

@@ -32,6 +32,7 @@ class MVCCSqlTest {
 
     @BeforeEach
     void setUp() {
+        storage = new InMemoryStorage();
         sqlEngine = new DefaultSqlEngine(storage);
         setupTestData();
     }

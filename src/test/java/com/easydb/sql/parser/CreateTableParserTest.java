@@ -25,7 +25,7 @@ class CreateTableParserTest {
 
         // Check column definitions
         ParseTree columnList = tree.getChild(1);
-        assertEquals(ParseTreeType.LIST, columnList.getType());
+        assertEquals(ParseTreeType.COLUMN_LIST, columnList.getType());
         assertEquals(2, columnList.getChildCount());
 
         // Check first column

@@ -79,7 +79,7 @@ public class InsertOperation implements Operation {
             sb.append("(")
               .append(String.join(", ", 
                   values.get(i).stream()
-                      .map(Object::toString)
+                      .map(value -> value == null ? "null" : value.toString())
                       .toList()))
               .append(")");
         }

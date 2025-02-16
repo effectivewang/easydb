@@ -3,6 +3,7 @@ package com.easydb.sql.planner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * Represents predicates for SQL query conditions.
@@ -162,4 +163,22 @@ public class QueryPredicate implements Operation {
         OR,
         NOT
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof QueryPredicate)) return false;
+        QueryPredicate that = (QueryPredicate) o;
+        return type == that.type &&
+               Objects.equals(column, that.column) &&
+               Objects.equals(value, that.value) &&
+               Objects.equals(subPredicates, that.subPredicates);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, column, value, subPredicates);
+    }
+
+    
 } 
