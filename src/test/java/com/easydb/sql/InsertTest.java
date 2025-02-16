@@ -56,10 +56,15 @@ public class InsertTest {
         assertNotNull(resultSet);
         assertEquals(1, resultSet.getRowCount());
 
-        String selectSql2 = "SELECT * FROM users WHERE name = 'John'";
+        String selectSql2 = "SELECT id, age FROM users WHERE name = 'John'";
         resultSet = sqlEngine.executeQuery(selectSql2);
         assertNotNull(resultSet);
         assertEquals(1, resultSet.getRowCount());
+        List<ResultSet.Row> rows = resultSet.getRows();
+        assertEquals(1, rows.size());
+        ResultSet.Row row = rows.get(0);
+        assertEquals(1, row.getInteger("id"));
+        assertEquals(30, row.getInteger("age"));
     }
 
 

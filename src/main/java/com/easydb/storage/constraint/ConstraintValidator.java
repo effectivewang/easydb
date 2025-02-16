@@ -17,7 +17,7 @@ public class ConstraintValidator {
     }
 
     public void validate(TableMetadata table, Tuple tuple) {
-        List<Object> values = tuple.getValues(table.columnTypes());;
+        List<Object> values = tuple.getValues();
         for (Constraint constraint : table.constraints()) {
             switch (constraint.getType()) {
                 case PRIMARY_KEY:
@@ -70,7 +70,7 @@ public class ConstraintValidator {
             .anyMatch(existingTuple -> {
                 List<Object> existingPkValues = constraint.getColumns().stream()
                 .map(column -> {
-                    List<Object> existingValues = existingTuple.getValues(metadata.columnTypes());
+                    List<Object> existingValues = existingTuple.getValues();
                     return getValue(existingValues, columnList, column);
                 }).toList();
                 return Objects.equals(pkValues, existingPkValues);
@@ -106,7 +106,7 @@ public class ConstraintValidator {
             .anyMatch(parentTuple -> {
                 List<Object> parentValues = constraint.getReferenceColumns().stream()
                 .map(column -> {
-                    List<Object> existingValues = parentTuple.getValues(metadata.columnTypes());
+                    List<Object> existingValues = parentTuple.getValues();
                     return getValue(existingValues, columnList, column);
                 }).toList();
                 return Objects.equals(fkValues, parentValues);
@@ -134,7 +134,7 @@ public class ConstraintValidator {
             .anyMatch(existingTuple -> {
                 List<Object> existingValues = constraint.getColumns().stream()
                     .map(column -> {
-                        List<Object> temp = existingTuple.getValues(metadata.columnTypes());
+                        List<Object> temp = existingTuple.getValues();
                         return getValue(temp, metadata.columnNames(), column);
                     }).toList();
                 return Objects.equals(uniqueValues, existingValues);
@@ -156,7 +156,7 @@ public class ConstraintValidator {
 
     private void validateNotNull(Constraint constraint, Tuple tuple, TableMetadata table) {
         for (String column : constraint.getColumns()) {
-            if (tuple.getValue(table, column) == null) {
+            if (tuple.getValue(column) == null) {
                 throw new ConstraintViolationException(
                     "Column '%s' cannot be null".formatted(column));
             }

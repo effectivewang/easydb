@@ -44,8 +44,7 @@ public class FilterExecutor implements PlanExecutor {
             }
 
             // Get values for predicate evaluation
-            List<Object> values = tuple.get().getValues(
-                operation.getRangeTableEntry().getMetadata().columnTypes());
+            List<Object> values = tuple.get().getValues();
 
             // Evaluate predicate
             if (PredicateEvaluator.evaluate(

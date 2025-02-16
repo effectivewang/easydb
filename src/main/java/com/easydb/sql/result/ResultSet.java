@@ -88,17 +88,14 @@ public class ResultSet {
             return new ResultSet(columns, rows);
         }
 
-        public ResultSet build(List<Tuple> tuples, Storage storage) {
+        public ResultSet build(List<Tuple> tuples) {
             tuples.forEach(tuple -> {
-                String tableName = tuple.id().tableName();
-                TableMetadata metadata = storage.getTableMetadata(tableName);
-                List<String> columns = metadata.columnNames();
-                List<Class<?>> columnTypes = metadata.columnTypes();
+                List<String> columnNames = tuple.getColumnNames();
                 
                 Map<String, Object> values = new HashMap<>();
-                List<Object> tupleValues = tuple.getValues(columnTypes);
-                for (int i = 0; i < columns.size(); i++) {
-                    values.put(columns.get(i), tupleValues.get(i));
+                List<Object> tupleValues = tuple.getValues();
+                for (int i = 0; i < columnNames.size(); i++) {
+                    values.put(columnNames.get(i), tupleValues.get(i));
                 }
                 addRow(values);
             });

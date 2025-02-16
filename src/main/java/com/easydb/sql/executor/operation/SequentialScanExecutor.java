@@ -40,8 +40,7 @@ public class SequentialScanExecutor implements PlanExecutor {
     public Optional<Tuple> next() {
         while (tupleIterator.hasNext()) {
             Tuple tuple = tupleIterator.next();
-            List<Object> values = tuple.getValues(
-                operation.getRangeTableEntry().getMetadata().columnTypes());
+            List<Object> values = tuple.getValues();
             
             // Use shared PredicateEvaluator
             if (operation.getPredicate() == null || 

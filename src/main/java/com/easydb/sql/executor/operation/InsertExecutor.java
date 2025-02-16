@@ -48,7 +48,9 @@ public class InsertExecutor implements PlanExecutor {
         // Create and insert tuple within transaction
         Tuple tuple = new Tuple(
             TupleId.create(operation.getTableName()),
-            rowValues
+            rowValues,
+            storage.getTableMetadata(operation.getTableName()),
+            1
         );
         
         storage.insertTuple(

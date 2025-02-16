@@ -7,11 +7,12 @@ import com.easydb.sql.executor.PlanExecutor;
 import com.easydb.sql.planner.operation.ProjectOperation;
 import com.easydb.sql.planner.expression.Expression;
 import com.easydb.sql.planner.RangeTableEntry;
-
+import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.core.Column;
 import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
-
+import java.util.stream.Collectors;
 /**
  * Executes projection operations, similar to PostgreSQL's ProjectionNode
  * Handles column selection and expression evaluation.
@@ -45,11 +46,13 @@ public class ProjectExecutor implements PlanExecutor {
 
         // Project selected columns
         List<Object> projectedValues = projectTuple(childTuple.get());
-        
+        TableMetadata projectedTable = projectTable(childTuple.get().getMetadata());
         // Create new tuple with projected values
         return Optional.of(new Tuple(
             childTuple.get().id(),  // Maintain original tuple ID
-            projectedValues
+            projectedValues,
+            projectedTable,
+            childTuple.get().getXmin()
         ));
     }
 
@@ -84,6 +87,22 @@ public class ProjectExecutor implements PlanExecutor {
         }
 
         return result;
+    }
+
+    private TableMetadata projectTable(TableMetadata inputTable) {
+        List<String> targetColumnNames = operation.getTargetList();
+        List<Integer> columnIndexes = operation.getColumnIndexes();
+        
+        List<Column> targetColumns = columnIndexes.stream()
+            .map(inputTable::getColumn)
+            .collect(Collectors.toList());
+
+        return new TableMetadata(
+            inputTable.tableName(),
+            targetColumns,
+            inputTable.indexes(),
+            inputTable.constraints()
+        );
     }
 
     private Object evaluateExpression(Expression expr, Tuple tuple) {

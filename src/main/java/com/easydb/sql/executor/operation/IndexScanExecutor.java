@@ -53,7 +53,7 @@ public class IndexScanExecutor implements PlanExecutor {
         while (tupleIterator.hasNext()) {
             Tuple tuple = tupleIterator.next();
             // Apply any additional filter predicates
-            List<Object> values = tuple.getValues(operation.getRangeTableEntry().getMetadata().columnTypes());
+            List<Object> values = tuple.getValues();
 
             if (operation.getPredicate() == null || 
                 PredicateEvaluator.evaluate(

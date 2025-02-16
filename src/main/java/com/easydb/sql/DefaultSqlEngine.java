@@ -54,7 +54,7 @@ public class DefaultSqlEngine implements SqlEngine {
         QueryTree queryTree = generaQueryTree(sql);
 
         List<Tuple> qTuples = queryExecutor.execute(queryTree);
-        return new ResultSet.Builder().build(qTuples, storage);
+        return new ResultSet.Builder().build(qTuples);
     }
 
     private QueryTree generaQueryTree(String sql) {

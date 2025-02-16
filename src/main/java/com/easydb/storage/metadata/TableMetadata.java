@@ -128,10 +128,14 @@ public class TableMetadata {
             .findFirst()
             .orElse(null);
     }
+    public Column getColumn(int index) {
+        return columns.get(index);
+    }
 
     public int getColumnIndex(String columnName) {
         return columns.indexOf(getColumn(columnName));
     }
+    
     
     public boolean hasColumn(String columnName) {
         return columns.stream()

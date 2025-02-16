@@ -73,7 +73,7 @@ public class QueryExecutorState {
         TableMetadata metadata = entry.getMetadata();
 
         // Basic size estimation
-        return tuple.getValues(metadata.columnTypes()).stream()
+        return tuple.getValues().stream()
                    .mapToLong(value -> {
                        if (value instanceof String) {
                            return ((String) value).length() * 2L;

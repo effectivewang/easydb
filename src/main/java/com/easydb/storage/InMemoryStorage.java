@@ -103,7 +103,7 @@ public class InMemoryStorage implements Storage {
             return true;
         }
 
-        List<Object> values = tuple.getValues(types);
+        List<Object> values = tuple.getValues();
         List<String> columnNames = tables.get(tuple.id().tableName()).columns().stream()
             .map(column -> column.name())
             .collect(Collectors.toList());
@@ -128,7 +128,7 @@ public class InMemoryStorage implements Storage {
     private String buildIndexKey(IndexMetadata indexMetadata, Tuple tuple) {
         List<String> indexedColumns = indexMetadata.columnNames();
         TableMetadata metadata = tables.get(tuple.id().tableName());
-        List<Object> values = tuple.getValues(metadata.columnTypes());
+        List<Object> values = tuple.getValues();
         List<Object> indexValues = new ArrayList<>();
         
         // Only use values from indexed columns

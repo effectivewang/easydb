@@ -103,7 +103,7 @@ public class DMLExecutor {
             tupleValues.add(convertedValue);
         }
         
-        return new Tuple(new TupleId(metadata.tableName(), Instant.now().toEpochMilli()), tupleValues);
+        return new Tuple(new TupleId(metadata.tableName(), Instant.now().toEpochMilli()), tupleValues, metadata, 1);
     }
 
     private Object convertValue(Object value, DataType targetType) {
