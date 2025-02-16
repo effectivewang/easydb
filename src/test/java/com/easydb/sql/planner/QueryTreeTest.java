@@ -1,13 +1,41 @@
 package com.easydb.sql.planner;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.sql.planner.RangeTableEntry;
+import com.easydb.sql.planner.QueryTree;
+import com.easydb.core.DataType;
+import com.easydb.core.Column;
+import com.easydb.sql.planner.QueryOperator;
+import com.easydb.sql.planner.QueryPredicate;
 
 class QueryTreeTest {
+
+    private TableMetadata usersTable = new TableMetadata(
+        "users", 
+        Arrays.asList(new Column("id", DataType.INTEGER), new Column("name", DataType.STRING), new Column("age", DataType.INTEGER)), 
+        new HashMap<String, IndexMetadata>(), 
+        new ArrayList<>());
+    private TableMetadata departmentsTable = new TableMetadata(
+        "departments", 
+        Arrays.asList(new Column("id", DataType.INTEGER), new Column("name", DataType.STRING), new Column("department", DataType.STRING), new Column("salary", DataType.INTEGER)), 
+        new HashMap<String, IndexMetadata>(), 
+        new ArrayList<>());
+    private TableMetadata ordersTable = new TableMetadata(
+        "orders", 
+        Arrays.asList(new Column("id", DataType.INTEGER), new Column("user_id", DataType.INTEGER), new Column("total", DataType.INTEGER)), 
+        new HashMap<String, IndexMetadata>(), 
+        new ArrayList<>());
+   
     @Test
     void testSimpleQueryTree() {
         QueryPredicate predicate = QueryPredicate.equals("age", 25);
@@ -15,7 +43,12 @@ class QueryTreeTest {
             QueryOperator.SEQUENTIAL_SCAN, 
             predicate, 
             Arrays.asList("id", "name", "age"), 
-            Arrays.asList(new RangeTableEntry("users", null, new TableMetadata(Arrays.asList("id", "name", "age")), 1))
+            Arrays.asList(new RangeTableEntry(
+                "users", 
+                null, 
+                usersTable,
+                1
+            ))
         );
 
         assertEquals(QueryOperator.SEQUENTIAL_SCAN, tree.getOperator());
@@ -30,20 +63,38 @@ class QueryTreeTest {
         QueryTree scan1 = new QueryTree(
             QueryOperator.SEQUENTIAL_SCAN,
             null,
-            Arrays.asList("id", "name", "age")
+            Arrays.asList("id", "name", "age"),
+            Arrays.asList(new RangeTableEntry(
+                "users", 
+                null, 
+                usersTable,
+                1
+            ))
         );
 
         QueryTree scan2 = new QueryTree(
             QueryOperator.SEQUENTIAL_SCAN,
             null,
-            Arrays.asList("id", "department", "salary")
+            Arrays.asList("id", "department", "salary"),
+            Arrays.asList(new RangeTableEntry(
+                "departments", 
+                null, 
+                departmentsTable,
+                2
+            ))
         );
 
         // Create join node
         QueryTree join = new QueryTree(
             QueryOperator.HASH_JOIN,
             QueryPredicate.equals("id", "id"),
-            Arrays.asList("name", "department", "salary")
+            Arrays.asList("name", "department", "salary"),
+            Arrays.asList(new RangeTableEntry(
+                "departments", 
+                null, 
+                departmentsTable,
+                2
+            ))
         );
 
         join.addChild(scan1);
@@ -59,7 +110,12 @@ class QueryTreeTest {
         QueryTree tree = new QueryTree(
             QueryOperator.SEQUENTIAL_SCAN,
             null,
-            Collections.singletonList("*")
+            Arrays.asList("*"),
+            Arrays.asList(new RangeTableEntry(
+                "users", 
+                null, 
+                usersTable, 
+                1))
         );
 
         tree.setEstimatedCost(100.5);
@@ -76,7 +132,8 @@ class QueryTreeTest {
             QueryOperator.SEQUENTIAL_SCAN,
             QueryPredicate.greaterThan("age", 18),
             Arrays.asList("id", "name", "age"),
-            Arrays.asList(new RangeTableEntry("users", null, new TableMetadata(Arrays.asList("id", "name", "age")), 1))
+            Arrays.asList(new RangeTableEntry("users", null, 
+                usersTable, 1))
         );
         usersScan.setEstimatedRows(1000);
         usersScan.setEstimatedCost(100.0);
@@ -85,8 +142,12 @@ class QueryTreeTest {
             QueryOperator.INDEX_SCAN,
             QueryPredicate.equals("status", "pending"),
             Arrays.asList("id", "user_id", "total"),
-            Arrays.asList(new RangeTableEntry("orders", null, new TableMetadata(Arrays.asList("id", "user_id", "total")), 2))
-        );
+            Arrays.asList(new RangeTableEntry(
+                "orders", 
+                null, 
+                ordersTable, 
+                2))
+            );
         ordersScan.setEstimatedRows(500);
         ordersScan.setEstimatedCost(50.0);
 
@@ -94,7 +155,12 @@ class QueryTreeTest {
         QueryTree join = new QueryTree(
             QueryOperator.HASH_JOIN,
             QueryPredicate.equals("id", "user_id"),
-            Arrays.asList("name", "total")
+            Arrays.asList("name", "total"),
+            Arrays.asList(new RangeTableEntry(
+                "orders", 
+                null, 
+                ordersTable, 
+                2))
         );
         join.setEstimatedRows(1500);
         join.setEstimatedCost(200.0);
@@ -106,7 +172,12 @@ class QueryTreeTest {
         QueryTree aggregate = new QueryTree(
             QueryOperator.HASH_AGGREGATE,
             null,
-            Arrays.asList("name", "total_orders")
+            Arrays.asList("name", "total_orders"),
+            Arrays.asList(new RangeTableEntry(
+                "orders", 
+                null, 
+                ordersTable, 
+                2))
         );
         aggregate.setEstimatedRows(100);
         aggregate.setEstimatedCost(300.0);
@@ -134,7 +205,12 @@ class QueryTreeTest {
         QueryTree scan = new QueryTree(
             QueryOperator.SEQUENTIAL_SCAN,
             QueryPredicate.equals("age", 25),
-            Arrays.asList("id", "name", "age")
+            Arrays.asList("id", "name", "age"),
+            Arrays.asList(new RangeTableEntry(
+                "users", 
+                null, 
+                usersTable, 
+                1))
         );
         scan.setEstimatedCost(100.0);
         scan.setEstimatedRows(1000);
