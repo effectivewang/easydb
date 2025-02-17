@@ -9,11 +9,16 @@ import com.easydb.sql.planner.operation.SequentialScanOperation;
 import com.easydb.sql.planner.operation.IndexScanOperation;
 import com.easydb.sql.planner.operation.ProjectOperation;
 import com.easydb.sql.planner.operation.FilterOperation;
-import com.easydb.sql.executor.operation.SequentialScanExecutor;
-import com.easydb.sql.executor.operation.IndexScanExecutor;
-import com.easydb.sql.executor.operation.InsertExecutor;
-import com.easydb.sql.executor.operation.ProjectExecutor;
-import com.easydb.sql.executor.operation.FilterExecutor;
+import com.easydb.sql.executor.SequentialScanExecutor;
+import com.easydb.sql.executor.IndexScanExecutor;
+import com.easydb.sql.executor.InsertExecutor;
+import com.easydb.sql.executor.ProjectExecutor;
+import com.easydb.sql.executor.FilterExecutor;
+import com.easydb.storage.transaction.Transaction;
+import com.easydb.storage.transaction.IsolationLevel;
+import com.easydb.sql.planner.operation.UpdateOperation;
+import com.easydb.sql.executor.UpdateExecutor;
+import com.easydb.sql.executor.DeleteExecutor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,24 +43,34 @@ public class QueryExecutor {
     }
 
     public List<Tuple> execute(QueryTree plan) {
-        // Create executor state
+        // Get or start transaction
+        Transaction txn = executionContext.getCurrentTransaction();
+        if (txn == null) {
+            txn = executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
+        }
+        
+        // Create executor state with transaction context
         QueryExecutorState state = new QueryExecutorState(plan, executionContext);
         
-        // Create root executor
+        // Create and initialize executor tree
         PlanExecutor executor = createExecutor(plan, state);
-        
         try {
-            // Initialize executor tree
             executor.init();
             
-            // Collect results using iterator pattern
+            // Execute with transaction context
             List<Tuple> results = new ArrayList<>();
             Optional<Tuple> tuple;
             while ((tuple = executor.next()).isPresent()) {
-                results.add(tuple.get());
+                Tuple visibleTuple = tuple.get();
+                // Record read in transaction
+                txn.recordRead(visibleTuple.id());
+                results.add(visibleTuple);
             }
             
             return results;
+        } catch (Exception e) {
+            executionContext.rollbackTransaction();
+            throw e;
         } finally {
             executor.close();
         }

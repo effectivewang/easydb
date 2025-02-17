@@ -13,6 +13,8 @@ import com.easydb.sql.planner.operation.SequentialScanOperation;
 import com.easydb.sql.planner.operation.ProjectOperation;
 import com.easydb.sql.planner.operation.InsertOperation;
 import com.easydb.sql.planner.operation.FilterOperation;
+import com.easydb.sql.planner.operation.UpdateOperation;
+import com.easydb.sql.planner.operation.DeleteOperation;
 import com.easydb.sql.planner.expression.ExpressionBuilder;
 import com.easydb.sql.planner.expression.Expression;
 import com.easydb.storage.metadata.IndexMetadata;
@@ -45,6 +47,10 @@ public class QueryTreeGenerator {
                 return generateSelectTree(parseTree, queryContext);
             case INSERT_STATEMENT:
                 return generateInsertTree(parseTree, queryContext);
+            case UPDATE_STATEMENT:
+                return generateUpdateTree(parseTree, queryContext);
+            case DELETE_STATEMENT:
+                return generateDeleteTree(parseTree, queryContext);
             default:
                 throw new IllegalArgumentException("Unsupported statement type: " + parseTree.getType());
         }
@@ -460,7 +466,11 @@ public class QueryTreeGenerator {
         if (tableRef == null) {
             throw new IllegalArgumentException("Missing table name in INSERT statement");
         }
-        String tableName = tableRef.getValue();
+
+        RangeTableEntry rte = findRangeTableEntry(
+            queryContext.getRangeTable(), 
+            getTableName(tableRef)
+        );
 
         // Get column list
         ParseTree columnList = findChildOfType(parseTree, ParseTreeType.LIST);
@@ -489,14 +499,14 @@ public class QueryTreeGenerator {
         // Create INSERT operator node with InsertOperation
         QueryTree insertNode = new QueryTree(
             QueryOperator.INSERT,
-            new InsertOperation(tableName, columns, allValues),
+            new InsertOperation(rte, columns, allValues),
             outputColumns,
             queryContext.getRangeTable()
         );
         
 
         // Set cost estimates
-        TableMetadata metadata = storage.getTableMetadata(tableName);
+        TableMetadata metadata = rte.getMetadata();
         double baseCost = 1.0 * allValues.size(); // Base cost for insertion
         double indexCost = metadata.indexes() != null ? metadata.indexes().size() * 0.5 : 0; // Additional cost per index
         insertNode.setEstimatedCost(baseCost + indexCost);
@@ -522,5 +532,103 @@ public class QueryTreeGenerator {
         }
     }
 
+    private QueryTree generateUpdateTree(ParseTree parseTree, QueryContext queryContext) {
+        // 1. Process target table
+        ParseTree targetTable = findChildOfType(parseTree, ParseTreeType.TABLE_REF);
+        RangeTableEntry targetRte = findRangeTableEntry(
+            queryContext.getRangeTable(), 
+            getTableName(targetTable)
+        );
 
+        // Process WHERE clause
+        ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
+        Expression whereExpr = whereClause != null ? 
+            ExpressionBuilder.build(whereClause.getChild(0), queryContext.getRangeTable()) : null;
+
+        // Process SET clause
+        ParseTree setClause = findChildOfType(parseTree, ParseTreeType.SET_CLAUSE);
+        List<String> targetColumns = new ArrayList<>();
+        List<Expression> setExpressions = new ArrayList<>();
+        
+        for (ParseTree assignment : setClause.getChildren()) {
+            targetColumns.add(assignment.getChild(0).getValue());
+            setExpressions.add(
+                ExpressionBuilder.build(assignment.getChild(1), queryContext.getRangeTable())
+            );
+        }
+
+        // Build scan and filter plan
+        QueryTree result = generateScanAndFilter(
+            parseTree, 
+            targetRte, 
+            queryContext
+        );
+
+        // Add UPDATE node on top with the where expression
+        QueryTree updateNode = new QueryTree(
+            QueryOperator.UPDATE,
+            new UpdateOperation(
+                targetColumns, 
+                setExpressions, 
+                targetRte,
+                whereExpr  // Pass the where expression
+            ),
+            List.of(),
+            queryContext.getRangeTable()
+        );
+        updateNode.addChild(result);
+
+        return updateNode;
+    }
+
+    private QueryTree generateDeleteTree(ParseTree parseTree, QueryContext queryContext) {
+        // 1. Process target table
+        ParseTree targetTable = findChildOfType(parseTree, ParseTreeType.TABLE_REF);
+        RangeTableEntry targetRte = findRangeTableEntry(
+            queryContext.getRangeTable(), 
+            getTableName(targetTable)
+        );
+
+        // 2. Process WHERE clause
+        ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
+        Expression whereExpr = whereClause != null ? 
+            ExpressionBuilder.build(whereClause.getChild(0), queryContext.getRangeTable()) : null;
+
+        // 3. Build scan and filter plan
+        QueryTree result = generateScanAndFilter(
+            parseTree, 
+            targetRte, 
+            queryContext
+        );
+
+        // 4. Add DELETE node on top with the where expression
+        QueryTree deleteNode = new QueryTree(
+            QueryOperator.DELETE,
+            new DeleteOperation(targetRte, whereExpr),  // Pass the where expression
+            List.of(),  // DELETE produces no output
+            queryContext.getRangeTable()
+        );
+        deleteNode.addChild(result);
+
+        return deleteNode;
+    }
+
+    // Helper method for common scan+filter logic
+    private QueryTree generateScanAndFilter(
+            ParseTree parseTree, 
+            RangeTableEntry targetRte,
+            QueryContext queryContext) {
+            
+        // 1. Create base sequential scan
+        QueryTree result = createSequentialScan(targetRte);
+
+        // 2. Add filter if WHERE clause exists
+        ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
+        if (whereClause != null) {
+            QueryPredicate predicate = generatePredicate(whereClause.getChild(0), queryContext);
+            result = optimizeAccessPath(result, predicate, queryContext);
+        }
+
+        return result;
+    }
 } 

@@ -1,4 +1,4 @@
-package com.easydb.sql.executor.operation;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;

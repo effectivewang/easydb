@@ -1,4 +1,4 @@
-package com.easydb.sql.executor.operation;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 public class SequentialScanExecutor implements PlanExecutor {
     private final SequentialScanOperation operation;
@@ -31,8 +33,9 @@ public class SequentialScanExecutor implements PlanExecutor {
     public void init() {
         // Get table from range table entry
         String tableName = operation.getRangeTableEntry().getTableName();
+
         // Start table scan
-        List<Tuple> tuples = storage.scanTuples(tableName, Collections.emptyMap());
+        List<Tuple> tuples = storage.scanTuples(tableName, new HashMap<>(), state.getCurrentTransaction()); // TODO: add predicate
         this.tupleIterator = tuples.iterator();
     }
 

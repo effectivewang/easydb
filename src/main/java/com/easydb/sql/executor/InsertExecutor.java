@@ -1,7 +1,8 @@
-package com.easydb.sql.executor.operation;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
+import com.easydb.storage.TupleHeader;
 import com.easydb.sql.executor.QueryExecutorState;
 import com.easydb.sql.executor.PlanExecutor;
 import com.easydb.sql.planner.operation.InsertOperation;
@@ -44,17 +45,24 @@ public class InsertExecutor implements PlanExecutor {
 
         // Get next row to insert
         List<Object> rowValues = values.get(currentValueIndex++);
-        
+        TupleId tupleId = TupleId.create(operation.getRangeTableEntry().getTableName());
+        TupleHeader header = new TupleHeader(
+            tupleId,
+            operation.getRangeTableEntry().getMetadata(),
+            state.getCurrentTransaction().getXid(),
+            0L
+        );
         // Create and insert tuple within transaction
         Tuple tuple = new Tuple(
-            TupleId.create(operation.getTableName()),
+            tupleId,
             rowValues,
-            storage.getTableMetadata(operation.getTableName()),
-            1
+            header,
+            state.getCurrentTransaction().getXid()
         );
         
         storage.insertTuple(
-            tuple
+            tuple,
+            state.getCurrentTransaction()
         );
 
         return Optional.of(tuple);

@@ -15,6 +15,7 @@ import com.easydb.sql.planner.QueryTreeGenerator;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.sql.ddl.*;
+import com.easydb.storage.transaction.TransactionManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,42 +23,61 @@ import java.util.stream.Collectors;
 public class DefaultSqlEngine implements SqlEngine {
     private final InMemoryStorage storage;
     private final SqlParserFactory parserFactory;
+    private final TransactionManager transactionManager;
+    private final ExecutionContext executionContext;
 
     public DefaultSqlEngine(InMemoryStorage storage) {
+        this.transactionManager = new TransactionManager();
         this.storage = storage;
         this.parserFactory = new SqlParserFactory();
+        this.executionContext = new ExecutionContext(transactionManager);
     }
 
     @Override
     public Integer executeUpdate(String sql) {
         ParseTree parseTree = parserFactory.parse(sql);
 
-        // Handle DDL separately
+        // Handle DDL separately without transaction
         if (isDDLStatement(parseTree)) {
             return executeDDL(parseTree);
         }
 
-        QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
-        ExecutionContext executionContext = new ExecutionContext();
-        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
-        QueryTree queryTree = queryTreeGenerator.generate(parseTree);
-
-        System.out.println(queryTree.toString());
-        List<Tuple> tuples = queryExecutor.execute(queryTree);
-        return tuples.size();
+        // Begin transaction for DML
+        executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
+        
+        try {
+            QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
+            QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
+            QueryTree queryTree = queryTreeGenerator.generate(parseTree);
+            
+            List<Tuple> results = queryExecutor.execute(queryTree);
+            executionContext.commitTransaction();
+            return results.size();
+        } catch (Exception e) {
+            executionContext.rollbackTransaction();
+            throw e;
+        }
     }
 
     @Override
     public ResultSet executeQuery(String sql) {
-        ExecutionContext executionContext = new ExecutionContext();
-        QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
-        QueryTree queryTree = generaQueryTree(sql);
-
-        List<Tuple> qTuples = queryExecutor.execute(queryTree);
-        return new ResultSet.Builder().build(qTuples);
+        // Begin transaction for query
+        executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
+        
+        try {
+            QueryTree queryTree = generateQueryTree(sql);
+            QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
+            List<Tuple> results = queryExecutor.execute(queryTree);
+            
+            executionContext.commitTransaction();
+            return new ResultSet.Builder().build(results);
+        } catch (Exception e) {
+            executionContext.rollbackTransaction();
+            throw e;
+        }
     }
 
-    private QueryTree generaQueryTree(String sql) {
+    private QueryTree generateQueryTree(String sql) {
         ParseTree parseTree = parserFactory.parse(sql);
         QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
         QueryTree queryTree = queryTreeGenerator.generate(parseTree);

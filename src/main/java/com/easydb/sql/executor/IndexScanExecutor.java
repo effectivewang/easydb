@@ -1,4 +1,4 @@
-package com.easydb.sql.executor.operation;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
@@ -42,9 +42,8 @@ public class IndexScanExecutor implements PlanExecutor {
         Map<String, Object> indexConditions = extractIndexConditions(
             operation.getIndexCondition());
         
-        System.out.println("Index conditions: " + indexConditions);
         // Perform index lookup
-        List<Tuple> tuples = storage.scanTuples(tableName, indexConditions);
+        List<Tuple> tuples = storage.scanTuples(tableName, indexConditions, state.getCurrentTransaction());
         this.tupleIterator = tuples.iterator();
     }
 

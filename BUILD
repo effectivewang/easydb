@@ -79,7 +79,6 @@ java_test(
     args = [
         "--select-package=com.easydb.sql",
         "--details=verbose", 
-
     ],
     deps = [
         ":core",
@@ -101,9 +100,9 @@ java_test(
 
 java_test(
     name = "debug",
-    srcs = ["src/test/java/com/easydb/sql/InsertTest.java"],
+    srcs = ["src/test/java/com/easydb/sql/MVCCSqlTest.java"],
     use_testrunner = True,
-    test_class = "com.easydb.sql.InsertTest",
+    test_class = "com.easydb.sql.MVCCSqlTest",
     main_class = "org.junit.platform.console.ConsoleLauncher",
     args = [
         "--select-package=com.easydb.sql",

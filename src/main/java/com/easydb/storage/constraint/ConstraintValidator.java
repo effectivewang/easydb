@@ -3,7 +3,7 @@ package com.easydb.storage.constraint;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.Tuple;
 import com.easydb.storage.Storage;
-
+import com.easydb.storage.transaction.Transaction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -16,24 +16,24 @@ public class ConstraintValidator {
         this.storage = storage;
     }
 
-    public void validate(TableMetadata table, Tuple tuple) {
+    public void validate(TableMetadata table, Tuple tuple, Transaction txn) {
         List<Object> values = tuple.getValues();
         for (Constraint constraint : table.constraints()) {
             switch (constraint.getType()) {
                 case PRIMARY_KEY:
-                    validatePrimaryKey(constraint, values, table);
+                    validatePrimaryKey(constraint, values, table, txn);
                     break;
                 case FOREIGN_KEY:
-                    validateForeignKey((ForeignKeyConstraint)constraint, values, table);
+                    validateForeignKey((ForeignKeyConstraint)constraint, values, table, txn);
                     break;
                 case UNIQUE:
-                    validateUnique(constraint, values, table);
+                    validateUnique(constraint, values, table, txn);
                     break;
                 case CHECK:
-                    validateCheck((CheckConstraint)constraint, tuple, table);
+                    validateCheck((CheckConstraint)constraint, tuple, table, txn);
                     break;
                 case NOT_NULL:
-                    validateNotNull(constraint, tuple, table);
+                    validateNotNull(constraint, tuple, table, txn);
                     break;
                 default:
                     throw new UnsupportedOperationException("Unsupported constraint type: " + constraint.getType());
@@ -46,7 +46,7 @@ public class ConstraintValidator {
         return values.get(index);
     }
 
-    private void validatePrimaryKey(Constraint constraint, List<Object> values, TableMetadata metadata) {
+    private void validatePrimaryKey(Constraint constraint, List<Object> values, TableMetadata metadata, Transaction txn) {
         List<String> columnList = metadata.columnNames();
         Map<String, Object> condition = new HashMap<>();
         // Check for NULL values
@@ -65,7 +65,7 @@ public class ConstraintValidator {
             .map(column -> getValue(values, columnList, column))
             .toList();
 
-        boolean exists = storage.scanTuples(constraint.getTableName(), condition)
+        boolean exists = storage.scanTuples(constraint.getTableName(), condition, txn)
             .stream()
             .anyMatch(existingTuple -> {
                 List<Object> existingPkValues = constraint.getColumns().stream()
@@ -83,7 +83,7 @@ public class ConstraintValidator {
         }
     }
 
-    private void validateForeignKey(ForeignKeyConstraint constraint, List<Object> values, TableMetadata metadata) {
+    private void validateForeignKey(ForeignKeyConstraint constraint, List<Object> values, TableMetadata metadata, Transaction txn) {
         List<String> columnList = metadata.columnNames();
         Map<String, Object> condition = new HashMap<>();
 
@@ -101,7 +101,7 @@ public class ConstraintValidator {
         }
 
         // Check if referenced values exist in the parent table
-        boolean exists = storage.scanTuples(constraint.getReferenceTable(), condition)
+        boolean exists = storage.scanTuples(constraint.getReferenceTable(), condition, txn)
             .stream()
             .anyMatch(parentTuple -> {
                 List<Object> parentValues = constraint.getReferenceColumns().stream()
@@ -119,7 +119,7 @@ public class ConstraintValidator {
         }
     }
 
-    private void validateUnique(Constraint constraint, List<Object> values, TableMetadata metadata) {
+    private void validateUnique(Constraint constraint, List<Object> values, TableMetadata metadata, Transaction txn) {
         List<String> columnList = metadata.columnNames();
         Map<String, Object> condition = new HashMap<>();
         List<Object> uniqueValues = constraint.getColumns().stream()
@@ -129,7 +129,7 @@ public class ConstraintValidator {
                 return value;
             }).toList();
 
-        boolean exists = storage.scanTuples(constraint.getTableName(), condition)
+        boolean exists = storage.scanTuples(constraint.getTableName(), condition, txn)
             .stream()
             .anyMatch(existingTuple -> {
                 List<Object> existingValues = constraint.getColumns().stream()
@@ -147,14 +147,14 @@ public class ConstraintValidator {
         }
     }
 
-    private void validateCheck(CheckConstraint constraint, Tuple tuple, TableMetadata table) {
-        if (!evaluatePredicate(constraint.getConditions(), tuple)) {
+    private void validateCheck(CheckConstraint constraint, Tuple tuple, TableMetadata table, Transaction txn) {
+        if (!evaluatePredicate(constraint.getConditions(), tuple, txn)) {
             throw new ConstraintViolationException(
                 "Check constraint '%s' violated".formatted(constraint.getName()));
         }
     }
 
-    private void validateNotNull(Constraint constraint, Tuple tuple, TableMetadata table) {
+    private void validateNotNull(Constraint constraint, Tuple tuple, TableMetadata table, Transaction txn) {
         for (String column : constraint.getColumns()) {
             if (tuple.getValue(column) == null) {
                 throw new ConstraintViolationException(
@@ -163,7 +163,7 @@ public class ConstraintValidator {
         }
     }
 
-    private boolean evaluatePredicate(Map<String, Object> conditions, Tuple tuple) {
+    private boolean evaluatePredicate(Map<String, Object> conditions, Tuple tuple, Transaction txn) {
         // Implementation for evaluating check constraint predicates
         throw new UnsupportedOperationException("Not implemented yet");
     }

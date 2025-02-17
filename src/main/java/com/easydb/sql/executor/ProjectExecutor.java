@@ -1,4 +1,4 @@
-package com.easydb.sql.executor.operation;
+package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
@@ -51,7 +51,7 @@ public class ProjectExecutor implements PlanExecutor {
         return Optional.of(new Tuple(
             childTuple.get().id(),  // Maintain original tuple ID
             projectedValues,
-            projectedTable,
+            childTuple.get().getHeader(),
             childTuple.get().getXmin()
         ));
     }

@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.ArrayList;
 
 import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.transaction.Transaction;
+import com.easydb.storage.transaction.TransactionManager;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -14,51 +16,80 @@ import java.util.stream.Collectors;
  * Similar to PostgreSQL's HeapTuple structure.
  */
 public class Tuple {
+    private final TupleId id;
+    private final List<Object> values;
     private final TupleHeader header;
-    private final byte[] values;
-    private final List<Object> rowValues;
+    private volatile TupleId nextVersionId;  // Points to next version (PostgreSQL's t_ctid)
 
-    public Tuple(TupleId id, List<Object> rowValues, TableMetadata metadata, long xmin) {
-        this.rowValues = new ArrayList<>(rowValues);
-        
-        // Calculate value lengths for variable-length fields
-        List<Integer> valueLengths = rowValues.stream()
-            .map(ByteUtils::getSerializedLength)
-            .collect(Collectors.toList());
-
-        // Create header with MVCC info
-        this.header = new TupleHeader(
-            id,
-            metadata,
-            valueLengths,
-            xmin,          // Creating transaction ID
-            0L,            // Not deleted yet
-            false,         // Not updated yet
-            createNullBitmap(rowValues)
-        );
-
-        // Serialize values
-        this.values = ByteUtils.serializeValues(rowValues, valueLengths);
+    public Tuple(TupleId id, List<Object> values, TupleHeader header, long xmin, long xmax) {
+        this.id = id;
+        this.values = new ArrayList<>(values);
+        this.header = header.withXmin(xmin).withXmax(xmax);
+        this.nextVersionId = id;  // Initially points to self (like PostgreSQL)
     }
 
-    // Private constructor for updates
-    private Tuple(TupleHeader header, List<Object> rowValues, byte[] values) {
-        this.header = header;
-        this.rowValues = rowValues;
-        this.values = values;
+    public Tuple(TupleId id, List<Object> values, TupleHeader header, long xmin) {
+        this(id, values, header, xmin, 0L);
     }
 
-    public long getXmin() {
-        return header.getXmin();
+    // Version chain management
+    public void setNextVersion(TupleId nextId) {
+        this.nextVersionId = nextId;
     }
 
+    public TupleId getNextVersionId() {
+        return nextVersionId;
+    }
+
+    // MVCC support
+    public boolean isVisible(Transaction txn) {
+        switch (txn.getIsolationLevel()) {
+            case READ_COMMITTED:
+                return isVisibleForReadCommitted(txn);
+            case REPEATABLE_READ:
+            case SERIALIZABLE:
+                return isVisibleForSnapshot(txn);
+            default:
+                throw new IllegalStateException("Unknown isolation level");
+        }
+    }
+
+    private boolean isVisibleForReadCommitted(Transaction txn) {
+        // Creator must be committed
+        if (!txn.isCommitted(header.getXmin()) && header.getXmin() != txn.getXid()) {
+            return false;
+        }
+
+        // Not deleted or deleter not committed
+        return header.getXmax() == 0 || 
+               !txn.isCommitted(header.getXmax()) || 
+               header.getXmax() == txn.getXid();
+    }
+
+    private boolean isVisibleForSnapshot(Transaction txn) {
+        // Must be created before snapshot
+        if (header.getXmin() >= txn.getXid() || 
+            txn.wasActiveAtSnapshot(header.getXmin())) {
+            return false;
+        }
+
+        // Not deleted or deleted after snapshot
+        return header.getXmax() == 0 || 
+               header.getXmax() >= txn.getXid() || 
+               txn.wasActiveAtSnapshot(header.getXmax());
+    }
+
+    // Getters and setters
+    public long getXmin() { return header.getXmin(); }
+    public long getXmax() { return header.getXmax(); }
+    
     public TupleId id() {
-        return header.getId();
+        return id;
     }
 
     public <T> T getValue(String columnName, Class<T> expectedType) {
         int position = header.getColumnPosition(columnName);
-        Object value = rowValues.get(position);
+        Object value = values.get(position);
         
         if (value == null || expectedType.isInstance(value)) {
             return expectedType.cast(value);
@@ -68,11 +99,11 @@ public class Tuple {
     }
 
     public Object getValue(String columnName) {
-        return rowValues.get(header.getColumnPosition(columnName));
+        return values.get(header.getColumnPosition(columnName));
     }
 
     public Object getValue(int index) {
-        return rowValues.get(index);
+        return values.get(index);
     }
 
     public List<String> getColumnNames() {
@@ -80,16 +111,20 @@ public class Tuple {
     }
 
     public List<Object> getValues() {
-        return new ArrayList<>(rowValues);
+        return new ArrayList<>(values);
+    }
+
+    public TupleHeader getHeader() {
+        return header;
     }
 
     public Tuple markDeleted(long xmax) {
         TupleHeader newHeader = header.withXmax(xmax);
-        return new Tuple(newHeader, rowValues, values);
+        return new Tuple(id, values, newHeader, header.getXmin(), xmax);
     }
 
     public Tuple withUpdatedValues(Map<String, Object> updates, long xmax) {
-        List<Object> newValues = new ArrayList<>(rowValues);
+        List<Object> newValues = new ArrayList<>(values);
         
         for (Map.Entry<String, Object> update : updates.entrySet()) {
             int position = header.getColumnPosition(update.getKey());
@@ -106,30 +141,10 @@ public class Tuple {
             
         byte[] newValueBytes = ByteUtils.serializeValues(newValues, newLengths);
 
-        return new Tuple(newHeader, newValues, newValueBytes);
+        return new Tuple(id, newValues, newHeader, header.getXmin(), xmax);
     }
-
-    private static byte[] createNullBitmap(List<Object> values) {
-        int numBytes = (values.size() + 7) / 8;  // Round up to nearest byte
-        byte[] bitmap = new byte[numBytes];
-        
-        for (int i = 0; i < values.size(); i++) {
-            if (values.get(i) == null) {
-                int byteIndex = i / 8;
-                int bitIndex = i % 8;
-                bitmap[byteIndex] |= (1 << bitIndex);
-            }
-        }
-        
-        return bitmap;
-    }
-
-    public boolean isVisible(long currentXid) {
-        return header.isVisible(currentXid);
-    }
-
     public boolean isDeleted() {
-        return header.isDeleted();
+        return header.getXmax() != 0;
     }
 
     public TableMetadata getMetadata() {

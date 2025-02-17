@@ -39,7 +39,31 @@ class MVCCSqlTest {
 
     @Test
     void testReadCommitted() throws ExecutionException, InterruptedException {
-        
+        // Start transaction 1 with READ COMMITTED isolation
+        Transaction tx1 = sqlEngine.beginTransaction();
+        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+        // Start transaction 2
+        Transaction tx2 = sqlEngine.beginTransaction();   
+        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+        // Transaction 1 reads data
+        List<Map<String, Object>> result1 = sqlEngine.executeQuery(
+            "SELECT balance FROM accounts WHERE id = 1");
+        int initialBalance = (Integer) result1.get(0).get("balance");
+
+        // Transaction 2 updates data
+        sqlEngine.executeUpdate(
+            "UPDATE accounts SET balance = balance + 100 WHERE id = 1");
+        tx2.commit();
+
+        // Transaction 1 reads again - should see updated data  
+        result1 = sqlEngine.executeQuery(
+            "SELECT balance FROM accounts WHERE id = 1");
+        int updatedBalance = (Integer) result1.get(0).get("balance");
+
+        assertEquals(initialBalance + 100, updatedBalance);
+        tx1.commit(); 
     }
 
     /*

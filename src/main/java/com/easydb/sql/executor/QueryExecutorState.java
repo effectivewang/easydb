@@ -24,7 +24,7 @@ public class QueryExecutorState {
     public QueryExecutorState(QueryTree queryTree, ExecutionContext executionContext) {
         this.queryTree = queryTree;
         this.executionContext = executionContext;
-        this.transaction = executionContext.getTransaction();
+        this.transaction = executionContext.getCurrentTransaction();
         this.intermediateResults = new HashMap<>();
         this.executionStats = new HashMap<>();
     }
@@ -50,7 +50,7 @@ public class QueryExecutorState {
     }
 
 
-    public Transaction getTransaction() {
+    public Transaction getCurrentTransaction() {
         return transaction;
     }
 

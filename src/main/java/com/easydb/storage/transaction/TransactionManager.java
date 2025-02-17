@@ -1,66 +1,53 @@
 package com.easydb.storage.transaction;
 
-import com.easydb.storage.WriteAheadLog;
-import com.easydb.storage.Tuple;
-import com.easydb.storage.transaction.*;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Manages database transactions.
+ * Manages database transactions with MVCC support.
  */
 public class TransactionManager {
-    private final WriteAheadLog wal;
-    private final Map<Long, Transaction> activeTransactions;
-    private final Map<Long, Set<ReadWriteLock>> transactionLocks;
+    private final ConcurrentHashMap<Long, Transaction> activeTransactions;
+    private final ConcurrentHashMap<Long, TransactionStatus> transactionStatuses;
+    private final AtomicLong transactionIdGenerator;
 
-    public TransactionManager(WriteAheadLog wal) {
-        this.wal = wal;
+    public TransactionManager() {
         this.activeTransactions = new ConcurrentHashMap<>();
-        this.transactionLocks = new ConcurrentHashMap<>();
+        this.transactionStatuses = new ConcurrentHashMap<>();
+        this.transactionIdGenerator = new AtomicLong(1); // Start from 1
     }
 
-    public Transaction beginTransaction() {
-        Long transactionId = Instant.now().toEpochMilli();
-        Transaction transaction = new Transaction(transactionId, IsolationLevel.READ_COMMITTED);
-        activeTransactions.put(transactionId, transaction);
-        transactionLocks.put(transactionId, Collections.synchronizedSet(new HashSet<>()));
-        wal.logBegin(transactionId);
-        return transaction;
-    }
-
-    public void prepareCommit(Transaction transaction) {
-        // Write all changes to WAL
-        for (Map.Entry<Long, Tuple> entry : transaction.getWriteSet().entrySet()) {
-            Tuple tuple = entry.getValue();
-            wal.logInsert(transaction.getId(), tuple.id().tableName(), tuple);
+    public Transaction beginTransaction(IsolationLevel level) {
+        long txnId = transactionIdGenerator.getAndIncrement();
+        Transaction txn = new Transaction(txnId, level);
+        
+        // Set snapshot for isolation
+        if (level != IsolationLevel.READ_COMMITTED) {
+            Set<Long> activeXids = new HashSet<>(activeTransactions.keySet());
+            txn.setActiveTransactionsAtStart(activeXids);
         }
+        
+        activeTransactions.put(txnId, txn);
+        transactionStatuses.put(txnId, TransactionStatus.ACTIVE);
+        return txn;
     }
 
-    public void commitTransaction(Transaction transaction) {
-        wal.logCommit(transaction.getId());
-        releaseAllLocks(transaction);
+    public void commit(Transaction txn) {
+        transactionStatuses.put(txn.getXid(), TransactionStatus.COMMITTED);
+        activeTransactions.remove(txn.getXid());
     }
 
-    public void releaseAllLocks(Transaction transaction) {
-        Set<ReadWriteLock> heldLocks = transactionLocks.remove(transaction.getId());
-        if (heldLocks != null) {
-            for (ReadWriteLock lock : heldLocks) {
-                lock.writeLock().unlock();
-            }
-        }
-        activeTransactions.remove(transaction.getId());
+    public void rollback(Transaction txn) {
+        transactionStatuses.put(txn.getXid(), TransactionStatus.ABORTED);
+        activeTransactions.remove(txn.getXid());
     }
 
-    public void acquireReadLock(Transaction transaction, ReadWriteLock lock) {
-        lock.readLock().lock();
-        transactionLocks.computeIfAbsent(transaction.getId(), k -> Collections.synchronizedSet(new HashSet<>())).add(lock);
+    public boolean isCommitted(long xid) {
+        return transactionStatuses.get(xid) == TransactionStatus.COMMITTED;
     }
 
-    public void acquireWriteLock(Transaction transaction, ReadWriteLock lock) {
-        lock.writeLock().lock();
-        transactionLocks.computeIfAbsent(transaction.getId(), k -> Collections.synchronizedSet(new HashSet<>())).add(lock);
+    public boolean isActive(long xid) {
+        return transactionStatuses.get(xid) == TransactionStatus.ACTIVE;
     }
 } 

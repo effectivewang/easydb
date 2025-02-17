@@ -6,18 +6,18 @@ import java.util.List;
 import java.util.Objects;
 import com.easydb.sql.planner.Operation;
 import com.easydb.sql.planner.QueryOperator;
-
+import com.easydb.sql.planner.RangeTableEntry;
 /**
  * Represents an INSERT operation in the query plan.
  * Follows Single Responsibility Principle by handling only insert operations.
  */
 public class InsertOperation implements Operation {
-    private final String tableName;
+    private final RangeTableEntry rte;
     private final List<String> columns;
     private final List<List<Object>> values;
 
-    public InsertOperation(String tableName, List<String> columns, List<List<Object>> values) {
-        this.tableName = Objects.requireNonNull(tableName, "Table name cannot be null");
+    public InsertOperation(RangeTableEntry rte, List<String> columns, List<List<Object>> values) {
+        this.rte = Objects.requireNonNull(rte, "Range table entry cannot be null");
         this.columns = Collections.unmodifiableList(new ArrayList<>(
             Objects.requireNonNull(columns, "Columns cannot be null")));
         this.values = Collections.unmodifiableList(new ArrayList<>(
@@ -47,8 +47,8 @@ public class InsertOperation implements Operation {
     }
 
     // Immutable getters
-    public String getTableName() {
-        return tableName;
+    public RangeTableEntry getRangeTableEntry() {
+        return rte;
     }
 
     public List<String> getColumns() {
@@ -67,7 +67,7 @@ public class InsertOperation implements Operation {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO ")
-          .append(tableName)
+          .append(rte.getTableName())
           .append(" (")
           .append(String.join(", ", columns))
           .append(") VALUES ");
@@ -92,13 +92,13 @@ public class InsertOperation implements Operation {
         if (this == o) return true;
         if (!(o instanceof InsertOperation)) return false;
         InsertOperation that = (InsertOperation) o;
-        return Objects.equals(tableName, that.tableName) &&
+        return Objects.equals(rte, that.rte) &&
                Objects.equals(columns, that.columns) &&
                Objects.equals(values, that.values);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(tableName, columns, values);
+        return Objects.hash(rte, columns, values);
     }
 } 

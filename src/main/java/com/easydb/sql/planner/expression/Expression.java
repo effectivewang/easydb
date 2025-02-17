@@ -10,8 +10,8 @@ import java.util.Objects;
 public class Expression {
     private final ExpressionType type;
     private final String value;          // Column name, function name, or constant value
-    private final Expression left;       // Left operand for arithmetic
-    private final Expression right;      // Right operand for arithmetic
+    private final Expression left;       // Left operand for arithmetic/logical
+    private final Expression right;      // Right operand for arithmetic/logical
     private final List<Expression> arguments;  // Function arguments
     private final ArithmeticOperator operator; // Arithmetic operator
 
@@ -113,5 +113,34 @@ public class Expression {
     @Override
     public int hashCode() {
         return Objects.hash(type, value, left, right, arguments, operator);
+    }
+
+    // Factory methods for better readability
+    public static Expression column(String columnName) {
+        return new Expression(ExpressionType.COLUMN_REF, columnName);
+    }
+
+    public static Expression constant(Object value) {
+        return new Expression(ExpressionType.CONSTANT, String.valueOf(value));
+    }
+
+    public static Expression arithmetic(String operator, Expression left, Expression right) {
+        return new Expression(ExpressionType.ARITHMETIC, operator, left, right);
+    }
+
+    public static Expression comparison(ExpressionType type, Expression left, Expression right) {
+        return new Expression(type, null, left, right);
+    }
+
+    public static Expression and(Expression left, Expression right) {
+        return new Expression(ExpressionType.AND, null, left, right);
+    }
+
+    public static Expression or(Expression left, Expression right) {
+        return new Expression(ExpressionType.OR, null, left, right);
+    }
+
+    public static Expression not(Expression operand) {
+        return new Expression(ExpressionType.NOT, null, operand, null);
     }
 } 

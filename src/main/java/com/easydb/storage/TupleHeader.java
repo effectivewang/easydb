@@ -9,31 +9,21 @@ import java.util.*;
 public class TupleHeader {
     private final TupleId id;
     private final TableMetadata metadata;
-    private final List<Integer> valueLengths;
     private final Map<String, Integer> columnPositions;
     
     // MVCC information
     private final long xmin;           // Creating transaction ID
     private final long xmax;           // Deleting transaction ID
-    private final boolean updated;     // Has this tuple been updated?
-    private final byte[] nullBitmap;   // Bitmap for NULL values
 
     public TupleHeader(
             TupleId id,
             TableMetadata metadata,
-            List<Integer> valueLengths,
             long xmin,
-            long xmax,
-            boolean updated,
-            byte[] nullBitmap) {
+            long xmax) {
         this.id = id;
         this.metadata = metadata;
-        this.valueLengths = valueLengths;
         this.xmin = xmin;
         this.xmax = xmax;
-        this.updated = updated;
-        this.nullBitmap = nullBitmap;
-
         // Build column position mapping
         this.columnPositions = new HashMap<>();
         List<String> columnNames = metadata.columnNames();
@@ -42,14 +32,19 @@ public class TupleHeader {
         }
     }
 
+    public TupleHeader withXmin(long xmin) {
+        return new TupleHeader(
+            id, metadata, xmin, xmax);
+    }
+
     public TupleHeader withXmax(long xmax) {
         return new TupleHeader(
-            id, metadata, valueLengths, xmin, xmax, updated, nullBitmap);
+            id, metadata, xmin, xmax);
     }
 
     public TupleHeader withUpdate(long xmax) {
         return new TupleHeader(
-            id, metadata, valueLengths, xmin, xmax, true, nullBitmap);
+            id, metadata, xmin, xmax);
     }
 
     public boolean isVisible(long currentXid) {
@@ -63,12 +58,6 @@ public class TupleHeader {
         return xmax != 0;
     }
 
-    public boolean isNull(int columnIndex) {
-        int byteIndex = columnIndex / 8;
-        int bitIndex = columnIndex % 8;
-        return (nullBitmap[byteIndex] & (1 << bitIndex)) != 0;
-    }
-
     public int getColumnPosition(String columnName) {
         Integer position = columnPositions.get(columnName);
         if (position == null) {
@@ -80,8 +69,7 @@ public class TupleHeader {
     // Getters
     public TupleId getId() { return id; }
     public TableMetadata getMetadata() { return metadata; }
-    public List<Integer> getValueLengths() { return valueLengths; }
     public long getXmin() { return xmin; }
     public long getXmax() { return xmax; }
-    public boolean isUpdated() { return updated; }
+
 } 
