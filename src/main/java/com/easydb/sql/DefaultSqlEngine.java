@@ -77,6 +77,18 @@ public class DefaultSqlEngine implements SqlEngine {
         }
     }
 
+    public Transaction beginTransaction(IsolationLevel isolationLevel) {
+        return transactionManager.beginTransaction(isolationLevel);
+    }
+
+    public void commitTransaction(Transaction transaction) {
+        transactionManager.commit(transaction);
+    }
+
+    public void rollbackTransaction(Transaction transaction) {
+        transactionManager.rollback(transaction);
+    }
+
     private QueryTree generateQueryTree(String sql) {
         ParseTree parseTree = parserFactory.parse(sql);
         QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);

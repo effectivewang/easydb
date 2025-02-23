@@ -6,6 +6,7 @@ import com.easydb.storage.TupleId;
 import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.index.IndexType;
 import com.easydb.storage.metadata.IndexMetadata;
+import com.easydb.storage.transaction.TransactionManager;
 import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.core.Column;
 import com.easydb.core.DataType;
@@ -20,13 +21,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class InsertTest {
     private SqlEngine sqlEngine;
+    private TransactionManager transactionManager;  
     private InMemoryStorage storage;
     private InsertParser parser;
     private SqlParserFactory parserFactory;
 
     @BeforeEach
     void setUp() {
-        storage = new InMemoryStorage();
+        transactionManager = new TransactionManager();
+        storage = new InMemoryStorage(transactionManager);
         sqlEngine = new DefaultSqlEngine(storage);
         parserFactory = new SqlParserFactory();
         String createTable = """

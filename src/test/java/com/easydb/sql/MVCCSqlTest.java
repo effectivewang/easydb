@@ -4,16 +4,17 @@ import org.junit.jupiter.api.*;
 
 import com.easydb.sql.parser.SqlParserFactory;
 import com.easydb.storage.transaction.Transaction;
+import com.easydb.storage.transaction.IsolationLevel;
 import com.easydb.storage.Storage;
 import com.easydb.storage.InMemoryStorage;
 import com.easydb.sql.DefaultSqlEngine;
 import com.easydb.storage.transaction.TransactionManager;
 import com.easydb.storage.*;
+import com.easydb.sql.result.ResultSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 class MVCCSqlTest {
-    private SqlEngine sqlEngine;
+    private DefaultSqlEngine sqlEngine;
     private SqlParserFactory sqlParserFactory;
     private InMemoryStorage storage;   
     private TransactionManager transactionManager;
@@ -32,7 +33,8 @@ class MVCCSqlTest {
 
     @BeforeEach
     void setUp() {
-        storage = new InMemoryStorage();
+        transactionManager = new TransactionManager();
+        storage = new InMemoryStorage(transactionManager);
         sqlEngine = new DefaultSqlEngine(storage);
         setupTestData();
     }
@@ -40,17 +42,17 @@ class MVCCSqlTest {
     @Test
     void testReadCommitted() throws ExecutionException, InterruptedException {
         // Start transaction 1 with READ COMMITTED isolation
-        Transaction tx1 = sqlEngine.beginTransaction();
+        Transaction tx1 = sqlEngine.beginTransaction(IsolationLevel.READ_COMMITTED);
         sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
         // Start transaction 2
-        Transaction tx2 = sqlEngine.beginTransaction();   
+        Transaction tx2 = sqlEngine.beginTransaction(IsolationLevel.READ_COMMITTED);   
         sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
         // Transaction 1 reads data
-        List<Map<String, Object>> result1 = sqlEngine.executeQuery(
+        ResultSet result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1");
-        int initialBalance = (Integer) result1.get(0).get("balance");
+        int initialBalance = result1.getRows().get(0).getInteger("balance");
 
         // Transaction 2 updates data
         sqlEngine.executeUpdate(
@@ -60,7 +62,7 @@ class MVCCSqlTest {
         // Transaction 1 reads again - should see updated data  
         result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1");
-        int updatedBalance = (Integer) result1.get(0).get("balance");
+        int updatedBalance = (Integer) result1.getRows().get(0).getInteger("balance");
 
         assertEquals(initialBalance + 100, updatedBalance);
         tx1.commit(); 
