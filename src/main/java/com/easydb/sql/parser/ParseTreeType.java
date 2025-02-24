@@ -24,6 +24,7 @@ public enum ParseTreeType {
     VALUES_CLAUSE,
     SET_CLAUSE,
     USING_CLAUSE,
+
     // Expressions
     COLUMN_REF,
     TABLE_REF,
@@ -45,6 +46,7 @@ public enum ParseTreeType {
     CONDITION,
 
     // Operators
+    COMPARISON_OPERATOR,
     AND_OPERATOR,
     OR_OPERATOR,
     NOT_OPERATOR,
@@ -65,6 +67,10 @@ public enum ParseTreeType {
     BOOLEAN_TYPE,
     DOUBLE_TYPE,
     NULL_TYPE,
+
+    // Transaction related types
+    SET_TRANSACTION_STATEMENT,
+    ISOLATION_LEVEL_SPEC,
     
     // Constraints
     CONSTRAINT_REF,

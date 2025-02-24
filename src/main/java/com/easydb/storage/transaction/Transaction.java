@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class Transaction {
     private final long xid;
-    private final IsolationLevel isolationLevel;
     private final AtomicReference<TransactionStatus> status;
+    private IsolationLevel isolationLevel;
     
     // Track tuple IDs that this transaction has read/written
     private final Set<TupleId> readSet;
@@ -46,6 +46,10 @@ public class Transaction {
      */
     public void recordWrite(TupleId tupleId) {
         writeSet.add(tupleId);
+    }
+
+    public void setIsolationLevel(IsolationLevel isolationLevel) {
+        this.isolationLevel = isolationLevel;
     }
 
     /**

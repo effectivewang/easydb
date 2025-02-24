@@ -61,12 +61,77 @@ public class UpdateParser extends Parser {
             // Equals sign
             consume(TokenType.EQUALS, "Expected '=' after column name");
 
-            // Value
-            assignment.addChild(parseLiteral());
+            // Value or Expression
+            assignment.addChild(parseExpression());
             setList.addChild(assignment);
         } while (match(TokenType.COMMA));
 
         return setList;
+    }
+
+    private ParseTree parseExpression() {
+        ParseTree left = parseTerm();
+
+        while (match(TokenType.PLUS) || match(TokenType.MINUS)) {
+            Token operator = previous();
+            ParseTree right = parseTerm();
+            
+            ParseTree expr = new ParseTree(ParseTreeType.ARITHMETIC_EXPR);
+            expr.addChild(left);
+            expr.addChild(new ParseTree(operator.type() == TokenType.PLUS ? 
+                ParseTreeType.PLUS_OPERATOR : ParseTreeType.MINUS_OPERATOR));
+            expr.addChild(right);
+            left = expr;
+        }
+
+        return left;
+    }
+
+    private ParseTree parseTerm() {
+        ParseTree left = parseFactor();
+
+        while (match(TokenType.MULTIPLY) || match(TokenType.DIVIDE)) {
+            Token operator = previous();
+            ParseTree right = parseFactor();
+            
+            ParseTree expr = new ParseTree(ParseTreeType.ARITHMETIC_EXPR);
+            expr.addChild(left);
+            expr.addChild(new ParseTree(operator.type() == TokenType.MULTIPLY ? 
+                ParseTreeType.MULTIPLY_OPERATOR : ParseTreeType.DIVIDE_OPERATOR));
+            expr.addChild(right);
+            left = expr;
+        }
+
+        return left;
+    }
+
+    private ParseTree parseFactor() {
+        if (match(TokenType.LEFT_PAREN)) {
+            ParseTree expr = parseExpression();
+            consume(TokenType.RIGHT_PAREN, "Expected ')'");
+            return expr;
+        }
+
+        if (match(TokenType.IDENTIFIER)) {
+            return new ParseTree(ParseTreeType.COLUMN_REF, previous().value());
+        }
+
+        return parseLiteral();
+    }
+
+    private ParseTree parseLiteral() {
+        if (match(TokenType.STRING)) {
+            return new ParseTree(ParseTreeType.STRING_TYPE, previous().value());
+        } else if (match(TokenType.INTEGER)) {
+            return new ParseTree(ParseTreeType.INTEGER_TYPE, previous().value());
+        } else if (match(TokenType.DOUBLE)) {
+            return new ParseTree(ParseTreeType.DOUBLE_TYPE, previous().value());
+        } else if (match(TokenType.BOOLEAN)) {
+            return new ParseTree(ParseTreeType.BOOLEAN_TYPE, previous().value());
+        } else if (match(TokenType.NULL)) {
+            return new ParseTree(ParseTreeType.NULL_TYPE);
+        }
+        throw error(peek(), "Expected literal value");
     }
 
     private ParseTree parseWhereClause() {
@@ -88,14 +153,5 @@ public class UpdateParser extends Parser {
         } while (match(TokenType.AND));
 
         return whereClause;
-    }
-
-    private ParseTree parseLiteral() {
-        if (match(TokenType.STRING) || match(TokenType.INTEGER) || match(TokenType.DOUBLE) || match(TokenType.BOOLEAN)) {
-            return new ParseTree(ParseTreeType.LITERAL, previous().value());
-        } else if (match(TokenType.NULL)) {
-            return new ParseTree(ParseTreeType.NULL_EXPR);
-        }
-        throw error(peek(), "Expected literal value");
     }
 } 

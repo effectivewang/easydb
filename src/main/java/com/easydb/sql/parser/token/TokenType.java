@@ -31,7 +31,7 @@ public enum TokenType {
     ORDER,
     ASC,
     DESC,
-    SET,
+    
     AS,
     BETWEEN,
     LIKE,
@@ -45,8 +45,23 @@ public enum TokenType {
     UNIQUE,
     ON,
     USING,
-    
-    
+
+    // Transaction related keywords
+    SET,
+    BEGIN,
+    COMMIT,
+    ROLLBACK,
+    END,
+    ABORT,
+    READ,
+    COMMITTED,
+    UNCOMMITTED,
+    REPEATABLE,
+    SERIALIZABLE,
+    TRANSACTION,
+    ISOLATION,
+    LEVEL,
+
     // Data types
     INTEGER,
     STRING,

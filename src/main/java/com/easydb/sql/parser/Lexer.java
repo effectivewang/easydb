@@ -53,6 +53,20 @@ public class Lexer {
         KEYWORDS.put("STRING", TokenType.STRING);
         KEYWORDS.put("BOOLEAN", TokenType.BOOLEAN);
         KEYWORDS.put("DOUBLE", TokenType.DOUBLE);
+        KEYWORDS.put("READ", TokenType.READ);
+        KEYWORDS.put("COMMITTED", TokenType.COMMITTED);
+        KEYWORDS.put("UNCOMMITTED", TokenType.UNCOMMITTED);
+        KEYWORDS.put("REPEATABLE", TokenType.REPEATABLE);
+        KEYWORDS.put("SERIALIZABLE", TokenType.SERIALIZABLE);
+        KEYWORDS.put("TRANSACTION", TokenType.TRANSACTION);
+        KEYWORDS.put("ISOLATION", TokenType.ISOLATION);
+        KEYWORDS.put("LEVEL", TokenType.LEVEL);
+        KEYWORDS.put("SET", TokenType.SET);
+        KEYWORDS.put("BEGIN", TokenType.BEGIN);
+        KEYWORDS.put("COMMIT", TokenType.COMMIT);
+        KEYWORDS.put("ROLLBACK", TokenType.ROLLBACK);
+        KEYWORDS.put("END", TokenType.END);
+        KEYWORDS.put("ABORT", TokenType.ABORT);
     }
 
     public Lexer(String input) {

@@ -16,7 +16,7 @@ import com.easydb.storage.metadata.TableMetadata;
 import com.easydb.storage.metadata.IndexMetadata;
 import com.easydb.sql.ddl.*;
 import com.easydb.storage.transaction.TransactionManager;
-
+import com.easydb.storage.transaction.TransactionStatus;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,6 +25,7 @@ public class DefaultSqlEngine implements SqlEngine {
     private final SqlParserFactory parserFactory;
     private final TransactionManager transactionManager;
     private final ExecutionContext executionContext;
+    private IsolationLevel defaultIsolationLevel = IsolationLevel.READ_COMMITTED;
 
     public DefaultSqlEngine(InMemoryStorage storage) {
         this.transactionManager = new TransactionManager();
@@ -37,33 +38,43 @@ public class DefaultSqlEngine implements SqlEngine {
     public Integer executeUpdate(String sql) {
         ParseTree parseTree = parserFactory.parse(sql);
 
-        // Handle DDL separately without transaction
         if (isDDLStatement(parseTree)) {
             return executeDDL(parseTree);
         }
 
-        // Begin transaction for DML
-        executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
+        if (parseTree.getType() == ParseTreeType.SET_TRANSACTION_STATEMENT) {
+            handleSetTransaction(parseTree);
+            return 0;
+        } 
         
+        if (executionContext.getCurrentTransaction() == null) {
+            executionContext.beginTransaction(defaultIsolationLevel);
+        }
+
         try {
-            QueryTreeGenerator queryTreeGenerator = new QueryTreeGenerator(storage);
+            QueryTree queryTree = generateQueryTree(sql);
             QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
-            QueryTree queryTree = queryTreeGenerator.generate(parseTree);
-            
             List<Tuple> results = queryExecutor.execute(queryTree);
+            
             executionContext.commitTransaction();
             return results.size();
         } catch (Exception e) {
-            executionContext.rollbackTransaction();
             throw e;
         }
     }
 
     @Override
     public ResultSet executeQuery(String sql) {
+        ParseTree parseTree = parserFactory.parse(sql);
+
         // Begin transaction for query
-        executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
-        
+        if (parseTree.getType() == ParseTreeType.SET_TRANSACTION_STATEMENT) {
+            handleSetTransaction(parseTree);
+            return ResultSet.empty();
+        } else {
+            executionContext.beginTransaction(defaultIsolationLevel);
+        }
+
         try {
             QueryTree queryTree = generateQueryTree(sql);
             QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
@@ -123,5 +134,10 @@ public class DefaultSqlEngine implements SqlEngine {
         IndexMetadata metadata = IndexMetadataBuilder.fromParseTree(parseTree);
         storage.createIndex(metadata);
         return 0; // Convention for DDL success
+    }
+
+    private void handleSetTransaction(ParseTree parseTree) {
+        IsolationLevel level = IsolationLevel.valueOf(parseTree.getValue());
+        executionContext.beginTransaction(level);        
     }
 } 

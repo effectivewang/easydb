@@ -32,6 +32,10 @@ public class ResultSet {
         return rows.size();
     }
 
+    public static ResultSet empty() {
+        return new Builder().build();
+    }
+
     /**
      * Represents a row in the result set.
      */

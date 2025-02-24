@@ -40,6 +40,12 @@ public class SqlParserFactory {
                 return new InsertParser(tokens).parse();
             case TokenType.SELECT:
                 return new SelectParser(tokens).parse();
+            case TokenType.UPDATE:
+                return new UpdateParser(tokens).parse();
+            case TokenType.DELETE:
+                return new DeleteParser(tokens).parse();
+            case TokenType.SET:
+                return new SetTransactionParser(tokens).parse();
             default:
                 throw new ParseException(tokens.get(0), "Unsupported SQL statement type");
         }
