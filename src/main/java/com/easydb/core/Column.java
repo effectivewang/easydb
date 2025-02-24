@@ -88,4 +88,9 @@ public class Column {
             return Integer.parseInt(value);
         }
     }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }

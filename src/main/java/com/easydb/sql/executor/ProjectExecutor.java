@@ -2,6 +2,7 @@ package com.easydb.sql.executor;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
+import com.easydb.storage.TupleHeader;
 import com.easydb.sql.executor.QueryExecutorState;
 import com.easydb.sql.executor.PlanExecutor;
 import com.easydb.sql.planner.operation.ProjectOperation;
@@ -13,6 +14,7 @@ import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
+import java.util.Arrays;
 /**
  * Executes projection operations, similar to PostgreSQL's ProjectionNode
  * Handles column selection and expression evaluation.
@@ -46,12 +48,12 @@ public class ProjectExecutor implements PlanExecutor {
 
         // Project selected columns
         List<Object> projectedValues = projectTuple(childTuple.get());
-        TableMetadata projectedTable = projectTable(childTuple.get().getMetadata());
+        TupleHeader projHeader = projectHeader(childTuple.get().getHeader(), childTuple.get().getMetadata());
         // Create new tuple with projected values
         return Optional.of(new Tuple(
             childTuple.get().id(),  // Maintain original tuple ID
             projectedValues,
-            childTuple.get().getHeader(),
+            projHeader,
             childTuple.get().getXmin()
         ));
     }
@@ -89,7 +91,7 @@ public class ProjectExecutor implements PlanExecutor {
         return result;
     }
 
-    private TableMetadata projectTable(TableMetadata inputTable) {
+    private TupleHeader projectHeader(TupleHeader inputHeader, TableMetadata inputTable) {
         List<String> targetColumnNames = operation.getTargetList();
         List<Integer> columnIndexes = operation.getColumnIndexes();
         
@@ -97,11 +99,17 @@ public class ProjectExecutor implements PlanExecutor {
             .map(inputTable::getColumn)
             .collect(Collectors.toList());
 
-        return new TableMetadata(
+        TableMetadata projectedTable = new TableMetadata(
             inputTable.tableName(),
             targetColumns,
             inputTable.indexes(),
             inputTable.constraints()
+        );
+        return new TupleHeader(
+            inputHeader.getId(),
+            projectedTable,
+            inputHeader.getXmin(),
+            inputHeader.getXmax()
         );
     }
 

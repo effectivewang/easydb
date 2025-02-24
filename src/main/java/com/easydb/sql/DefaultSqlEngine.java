@@ -72,7 +72,6 @@ public class DefaultSqlEngine implements SqlEngine {
             executionContext.commitTransaction();
             return new ResultSet.Builder().build(results);
         } catch (Exception e) {
-            executionContext.rollbackTransaction();
             throw e;
         }
     }
