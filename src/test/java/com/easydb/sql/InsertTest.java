@@ -25,11 +25,13 @@ public class InsertTest {
     private InMemoryStorage storage;
     private InsertParser parser;
     private SqlParserFactory parserFactory;
+    private ExecutionContext executionContext;
 
     @BeforeEach
     void setUp() {
         transactionManager = new TransactionManager();
         storage = new InMemoryStorage(transactionManager);
+        executionContext = new ExecutionContext(transactionManager);
         sqlEngine = new DefaultSqlEngine(storage);
         parserFactory = new SqlParserFactory();
         String createTable = """
@@ -50,17 +52,17 @@ public class InsertTest {
         // Insert data
         String insertSql = "INSERT INTO users (id, name, age) VALUES (1, 'John', 30)";
         
-        Integer result = sqlEngine.executeUpdate(insertSql);
+        Integer result = sqlEngine.executeUpdate(insertSql, executionContext);
         assertNotNull(result);
         assertEquals(1, result);
 
         String selectSql = "SELECT * FROM users WHERE id = 1";
-        ResultSet resultSet = sqlEngine.executeQuery(selectSql);
+        ResultSet resultSet = sqlEngine.executeQuery(selectSql, executionContext);
         assertNotNull(resultSet);
         assertEquals(1, resultSet.getRowCount());
 
         String selectSql2 = "SELECT id, age FROM users WHERE name = 'John'";
-        resultSet = sqlEngine.executeQuery(selectSql2);
+        resultSet = sqlEngine.executeQuery(selectSql2, executionContext);
         assertNotNull(resultSet);
         assertEquals(1, resultSet.getRowCount());
         List<ResultSet.Row> rows = resultSet.getRows();
@@ -75,7 +77,7 @@ public class InsertTest {
     void testInsertWithNullValue() {
         String sql = "INSERT INTO users (id, name, age) VALUES (2, 'John', null)";
         
-        Integer result = sqlEngine.executeUpdate(sql);
+        Integer result = sqlEngine.executeUpdate(sql, executionContext);
         assertNotNull(result);
         assertEquals(1, result);
     }
@@ -84,12 +86,12 @@ public class InsertTest {
     void testInvalidInsert() {
         String sql = "INSERT INTO nonexistent (id) VALUES (1)";
         
-        assertThrows(IllegalArgumentException.class, () -> sqlEngine.executeUpdate(sql));
+        assertThrows(IllegalArgumentException.class, () -> sqlEngine.executeUpdate(sql, executionContext));
     }
 
     @Test
     void testInvalidSyntax() {
         String sql = "INSERT INTO users VALUES (1)"; // Missing column list
-        assertThrows(IllegalArgumentException.class, () -> sqlEngine.executeUpdate(sql));
+        assertThrows(IllegalArgumentException.class, () -> sqlEngine.executeUpdate(sql, executionContext));
     }
 } 

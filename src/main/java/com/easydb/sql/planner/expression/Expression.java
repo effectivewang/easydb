@@ -42,7 +42,7 @@ public class Expression {
         this.left = left;
         this.right = right;
         this.arguments = new ArrayList<>();
-        this.operator = ArithmeticOperator.fromString(operatorStr);
+        this.operator = operatorStr == null ? null : ArithmeticOperator.fromString(operatorStr);
     }
 
     public ExpressionType getType() {

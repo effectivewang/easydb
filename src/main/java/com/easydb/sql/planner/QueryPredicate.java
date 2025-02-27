@@ -1,5 +1,8 @@
 package com.easydb.sql.planner;
 
+import com.easydb.sql.parser.ParseTree;
+import com.easydb.sql.parser.ParseTreeType;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -54,6 +57,25 @@ public class QueryPredicate implements Operation {
 
     public static QueryPredicate greaterThanOrEquals(String column, Object value) {
         return new QueryPredicate(PredicateType.GREATER_THAN_OR_EQUALS, column, value);
+    }
+
+    public static QueryPredicate comparison(ParseTreeType operator, String column, Object value) {
+        switch (operator) {
+            case EQUALS_OPERATOR:
+                return equals(column, value);
+            case NOT_EQUALS_OPERATOR:
+                return notEquals(column, value);
+            case LESS_THAN_OPERATOR:
+                return lessThan(column, value);
+            case GREATER_THAN_OPERATOR:
+                return greaterThan(column, value);  
+            case LESS_THAN_EQUALS_OPERATOR:
+                return lessThanOrEquals(column, value);
+            case GREATER_THAN_EQUALS_OPERATOR:
+                return greaterThanOrEquals(column, value);
+            default:
+                throw new IllegalArgumentException("Unsupported operator: " + operator);
+        }
     }
 
     public static QueryPredicate isNull(String column) {

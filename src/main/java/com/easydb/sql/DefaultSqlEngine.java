@@ -24,18 +24,15 @@ public class DefaultSqlEngine implements SqlEngine {
     private final InMemoryStorage storage;
     private final SqlParserFactory parserFactory;
     private final TransactionManager transactionManager;
-    private final ExecutionContext executionContext;
-    private IsolationLevel defaultIsolationLevel = IsolationLevel.READ_COMMITTED;
 
     public DefaultSqlEngine(InMemoryStorage storage) {
         this.transactionManager = new TransactionManager();
         this.storage = storage;
         this.parserFactory = new SqlParserFactory();
-        this.executionContext = new ExecutionContext(transactionManager);
     }
 
     @Override
-    public Integer executeUpdate(String sql) {
+    public Integer executeUpdate(String sql, ExecutionContext executionContext) {
         ParseTree parseTree = parserFactory.parse(sql);
 
         if (isDDLStatement(parseTree)) {
@@ -43,12 +40,10 @@ public class DefaultSqlEngine implements SqlEngine {
         }
 
         if (parseTree.getType() == ParseTreeType.SET_TRANSACTION_STATEMENT) {
-            handleSetTransaction(parseTree);
+            handleSetTransaction(parseTree, executionContext);
             return 0;
-        } 
-        
-        if (executionContext.getCurrentTransaction() == null) {
-            executionContext.beginTransaction(defaultIsolationLevel);
+        } else {
+            executionContext.beginTransaction();
         }
 
         try {
@@ -64,15 +59,15 @@ public class DefaultSqlEngine implements SqlEngine {
     }
 
     @Override
-    public ResultSet executeQuery(String sql) {
+    public ResultSet executeQuery(String sql, ExecutionContext executionContext) {
         ParseTree parseTree = parserFactory.parse(sql);
 
         // Begin transaction for query
         if (parseTree.getType() == ParseTreeType.SET_TRANSACTION_STATEMENT) {
-            handleSetTransaction(parseTree);
+            handleSetTransaction(parseTree, executionContext);
             return ResultSet.empty();
         } else {
-            executionContext.beginTransaction(defaultIsolationLevel);
+            executionContext.beginTransaction();
         }
 
         try {
@@ -85,18 +80,6 @@ public class DefaultSqlEngine implements SqlEngine {
         } catch (Exception e) {
             throw e;
         }
-    }
-
-    public Transaction beginTransaction(IsolationLevel isolationLevel) {
-        return transactionManager.beginTransaction(isolationLevel);
-    }
-
-    public void commitTransaction(Transaction transaction) {
-        transactionManager.commit(transaction);
-    }
-
-    public void rollbackTransaction(Transaction transaction) {
-        transactionManager.rollback(transaction);
     }
 
     private QueryTree generateQueryTree(String sql) {
@@ -122,6 +105,14 @@ public class DefaultSqlEngine implements SqlEngine {
         }
     }
 
+    public void commitTransaction(ExecutionContext executionContext) {
+        executionContext.commitTransaction();
+    }
+
+    public void rollbackTransaction(ExecutionContext executionContext) {
+        executionContext.rollbackTransaction();
+    }
+
     private Integer executeCreateTable(ParseTree parseTree) {
         // Direct execution without query plan
         TableMetadata metadata = TableMetadataBuilder.fromParseTree(parseTree);
@@ -136,8 +127,8 @@ public class DefaultSqlEngine implements SqlEngine {
         return 0; // Convention for DDL success
     }
 
-    private void handleSetTransaction(ParseTree parseTree) {
+    private void handleSetTransaction(ParseTree parseTree, ExecutionContext executionContext) {
         IsolationLevel level = IsolationLevel.valueOf(parseTree.getValue());
-        executionContext.beginTransaction(level);        
+        executionContext.setIsolationLevel(level);
     }
 } 

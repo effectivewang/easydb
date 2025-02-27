@@ -16,9 +16,11 @@ public class ExpressionBuilder {
     public static Expression build(ParseTree expr, List<RangeTableEntry> rangeTable) {
         return switch (expr.getType()) {
             case COLUMN_REF -> buildColumnRef(expr, rangeTable);
-            case CONSTANT -> buildConstant(expr);
+            case STRING_TYPE, INTEGER_TYPE, DOUBLE_TYPE, BOOLEAN_TYPE, NULL_TYPE, CONSTANT -> buildConstant(expr);
             case FUNCTION_CALL -> buildFunctionCall(expr, rangeTable);
             case ARITHMETIC_EXPR -> buildArithmeticExpr(expr, rangeTable);
+            case CONDITION -> buildCondition(expr, rangeTable);
+            case COMPARISON_OPERATOR -> buildComparison(expr, rangeTable);
             default -> throw new IllegalStateException(
                 "Unsupported expression type: " + expr.getType());
         };
@@ -102,7 +104,8 @@ public class ExpressionBuilder {
     }
 
     private static Expression buildConstant(ParseTree expr) {
-        return new Expression(ExpressionType.CONSTANT, expr.getValue());
+        String value = expr.getValue();
+        return new Expression(ExpressionType.CONSTANT, value);
     }
 
     private static Expression buildFunctionCall(ParseTree functionCall, List<RangeTableEntry> rangeTable) {
@@ -120,7 +123,7 @@ public class ExpressionBuilder {
 
     private static Expression buildArithmeticExpr(ParseTree arithmeticExpr, List<RangeTableEntry> rangeTable) {
         Expression left = build(arithmeticExpr.getChild(0), rangeTable);
-        String operator = arithmeticExpr.getChild(1).getValue();
+        String operator = convertOperator(arithmeticExpr.getChild(1));
         Expression right = build(arithmeticExpr.getChild(2), rangeTable);
 
         return new Expression(
@@ -129,6 +132,59 @@ public class ExpressionBuilder {
             left,
             right
         );
+    }
+
+    private static String convertOperator(ParseTree operator) {
+        return switch (operator.getType()) {
+            case PLUS_OPERATOR -> "+";
+            case MINUS_OPERATOR -> "-";
+            case MULTIPLY_OPERATOR -> "*";
+            case DIVIDE_OPERATOR -> "/";
+            default -> throw new IllegalStateException(
+                "Unknown operator: " + operator.getType());
+        };
+    }
+
+    private static Expression buildCondition(ParseTree condition, List<RangeTableEntry> rangeTable) {
+        Expression left = build(condition.getChild(0), rangeTable);
+        ParseTree operator = condition.getChild(1);
+        Expression right = build(condition.getChild(2), rangeTable);
+
+        return switch (operator.getType()) {
+            case AND_OPERATOR -> new Expression(
+                ExpressionType.AND,
+                "AND",
+                left,
+                right
+            );
+            case OR_OPERATOR -> new Expression(
+                ExpressionType.OR,
+                "OR",
+                left,
+                right
+            );
+            default -> throw new IllegalStateException(
+                "Unknown logical operator: " + operator.getType());
+        };
+    }
+
+    private static Expression buildComparison(ParseTree comparison, List<RangeTableEntry> rangeTable) {
+        Expression left = build(comparison.getChild(0), rangeTable);
+        ParseTree operator = comparison.getChild(1);
+        Expression right = build(comparison.getChild(2), rangeTable);
+
+        ExpressionType op = switch (operator.getType()) {
+            case EQUALS_OPERATOR -> ExpressionType.EQUALS;
+            case NOT_EQUALS_OPERATOR -> ExpressionType.NOT_EQUALS;
+            case GREATER_THAN_OPERATOR -> ExpressionType.GREATER_THAN;
+            case LESS_THAN_OPERATOR -> ExpressionType.LESS_THAN;
+            case GREATER_THAN_EQUALS_OPERATOR -> ExpressionType.GREATER_EQUAL;
+            case LESS_THAN_EQUALS_OPERATOR -> ExpressionType.LESS_EQUAL;
+            default -> throw new IllegalStateException(
+                "Unknown comparison operator: " + operator.getType());
+        };
+
+        return Expression.comparison(op, left, right);
     }
 
     private static void processColumnRef(

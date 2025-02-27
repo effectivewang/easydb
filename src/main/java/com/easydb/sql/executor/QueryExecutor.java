@@ -46,7 +46,7 @@ public class QueryExecutor {
         // Get or start transaction
         Transaction txn = executionContext.getCurrentTransaction();
         if (txn == null) {
-            txn = executionContext.beginTransaction(IsolationLevel.READ_COMMITTED);
+            txn = executionContext.beginTransaction();
         }
         
         // Create executor state with transaction context

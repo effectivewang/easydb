@@ -382,6 +382,8 @@ public class QueryTreeGenerator {
                 return generateBinaryPredicate(expr, queryContext);
             case COLUMN_REF:
                 return generateColumnPredicate(expr, queryContext);
+            case COMPARISON_OPERATOR:
+                return generateComparisonPredicate(expr, queryContext);
             default:
                 throw new IllegalArgumentException("Unsupported expression type: " + expr.getType());
         }
@@ -454,6 +456,14 @@ public class QueryTreeGenerator {
     private QueryPredicate generateColumnPredicate(ParseTree expr, QueryContext queryContext) {
         // This would handle column references in predicates
         return null;
+    }
+
+    private QueryPredicate generateComparisonPredicate(ParseTree expr, QueryContext queryContext) {
+        ParseTree left = expr.getChild(0);
+        ParseTree operator = expr.getChild(1);
+        ParseTree right = expr.getChild(2);
+
+        return QueryPredicate.comparison(operator.getType(), left.getValue(), parseValue(right));
     }
 
     public void shutdown() {

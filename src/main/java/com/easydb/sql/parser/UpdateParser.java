@@ -136,22 +136,60 @@ public class UpdateParser extends Parser {
 
     private ParseTree parseWhereClause() {
         ParseTree whereClause = new ParseTree(ParseTreeType.WHERE_CLAUSE);
-        
-        do {
-            // Column name
-            Token column = consume(TokenType.IDENTIFIER, "Expected column name");
-            ParseTree condition = new ParseTree(ParseTreeType.CONDITION);
-            condition.addChild(new ParseTree(ParseTreeType.COLUMN_REF, column.value()));
-
-            // Operator
-            consume(TokenType.EQUALS, "Expected '=' in WHERE clause");
-            condition.addChild(new ParseTree(ParseTreeType.EQUALS_OPERATOR, "="));
-
-            // Value
-            condition.addChild(parseLiteral());
-            whereClause.addChild(condition);
-        } while (match(TokenType.AND));
-
+        whereClause.addChild(parseCondition());
         return whereClause;
+    }
+
+    private ParseTree parseCondition() {
+        ParseTree left = parseComparison();
+
+        while (match(TokenType.AND) || match(TokenType.OR)) {
+            Token operator = previous();
+            ParseTree right = parseComparison();
+            
+            ParseTree condition = new ParseTree(ParseTreeType.CONDITION);
+            condition.addChild(left);
+            condition.addChild(new ParseTree(
+                operator.type() == TokenType.AND ? 
+                ParseTreeType.AND_OPERATOR : 
+                ParseTreeType.OR_OPERATOR
+            ));
+            condition.addChild(right);
+            left = condition;
+        }
+
+        return left;
+    }
+
+    private ParseTree parseComparison() {
+        ParseTree left = parseExpression();
+
+        if (match(TokenType.EQUALS) || match(TokenType.NOT_EQUALS) || 
+            match(TokenType.GREATER_THAN) || match(TokenType.LESS_THAN) ||
+            match(TokenType.GREATER_THAN_EQUALS) || match(TokenType.LESS_THAN_EQUALS)) {
+            
+            Token operator = previous();
+            ParseTree right = parseExpression();
+            
+            ParseTree comparison = new ParseTree(ParseTreeType.COMPARISON_OPERATOR);
+            comparison.addChild(left);
+            comparison.addChild(new ParseTree(getComparisonType(operator)));
+            comparison.addChild(right);
+            return comparison;
+        }
+
+        return left;
+    }
+
+    private ParseTreeType getComparisonType(Token operator) {
+        return switch (operator.type()) {
+            case EQUALS -> ParseTreeType.EQUALS_OPERATOR;
+            case NOT_EQUALS -> ParseTreeType.NOT_EQUALS_OPERATOR;
+            case GREATER_THAN -> ParseTreeType.GREATER_THAN_OPERATOR;
+            case LESS_THAN -> ParseTreeType.LESS_THAN_OPERATOR;
+            case GREATER_THAN_EQUALS -> ParseTreeType.GREATER_THAN_EQUALS_OPERATOR;
+            case LESS_THAN_EQUALS -> ParseTreeType.LESS_THAN_EQUALS_OPERATOR;
+            default -> throw new IllegalStateException("Unknown comparison operator: " + operator.type());
+        };
     }
 } 

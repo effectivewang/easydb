@@ -12,18 +12,20 @@ public class ExecutionContext {
     private final TransactionManager transactionManager;
     private final ThreadLocal<Transaction> currentTransaction;
     private final Map<String, Set<Transaction>> activeTransactions;
+    private IsolationLevel isolationLevel;
     
     public ExecutionContext(TransactionManager transactionManager) {
         this.transactionManager = transactionManager;
         this.currentTransaction = new ThreadLocal<>();
         this.activeTransactions = new ConcurrentHashMap<>();
+        this.isolationLevel = IsolationLevel.READ_COMMITTED;
     }
 
     /**
      * Starts a new transaction with specified isolation level
      */
-    public Transaction beginTransaction(IsolationLevel level) {
-        Transaction txn = transactionManager.beginTransaction(level);
+    public Transaction beginTransaction() {
+        Transaction txn = transactionManager.beginTransaction(isolationLevel);
         currentTransaction.set(txn);
         
         // Track active transactions for isolation
@@ -33,6 +35,14 @@ public class ExecutionContext {
         ).add(txn);
         
         return txn;
+    }
+
+    public void setIsolationLevel(IsolationLevel level) {
+        this.isolationLevel = level;
+    }
+
+    public IsolationLevel getIsolationLevel() {
+        return isolationLevel;
     }
 
     /**
