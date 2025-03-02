@@ -10,14 +10,14 @@ import com.easydb.sql.planner.RangeTableEntry;
  */
 public class Expression {
     private final ExpressionType type;
-    private final String value;          // Column name, function name, or constant value
+    private final Object value;          // Column name, function name, or constant value
     private final Expression left;       // Left operand for arithmetic/logical
     private final Expression right;      // Right operand for arithmetic/logical
     private final List<Expression> arguments;  // Function arguments
     private final ArithmeticOperator operator; // Arithmetic operator
 
     // Constructor for column references and constants
-    public Expression(ExpressionType type, String value) {
+    public Expression(ExpressionType type, Object value) {
         this.type = type;
         this.value = value;
         this.left = null;
@@ -50,7 +50,7 @@ public class Expression {
         return type;
     }
 
-    public String getValue() {
+    public Object getValue() {
         return value;
     }
 
@@ -70,7 +70,7 @@ public class Expression {
         if (type != ExpressionType.FUNCTION_CALL) {
             throw new IllegalStateException("Not a function call expression");
         }
-        return value;
+        return (String) value;
     }
 
     public ArithmeticOperator getOperator() {
@@ -83,10 +83,10 @@ public class Expression {
     @Override
     public String toString() {
         return switch (type) {
-            case COLUMN_REF -> value;
-            case CONSTANT -> value instanceof String ? "'" + value + "'" : value;
+            case COLUMN_REF -> "Column: " + Objects.toString(value);
+            case CONSTANT -> "Constant: " + Objects.toString(value) ;
             case FUNCTION_CALL -> {
-                StringBuilder sb = new StringBuilder(value).append('(');
+                StringBuilder sb = new StringBuilder(value.toString()).append('(');
                 for (int i = 0; i < arguments.size(); i++) {
                     if (i > 0) sb.append(", ");
                     sb.append(arguments.get(i));

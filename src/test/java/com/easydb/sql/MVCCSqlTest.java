@@ -69,7 +69,7 @@ class MVCCSqlTest {
         sqlEngine.commitTransaction(executionContext2);
         result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1", executionContext);
-        int updatedBalance = (Integer) result1.getRows().get(0).getInteger("balance");
+        int updatedBalance = result1.getRows().get(0).getInteger("balance");
 
         assertEquals(initialBalance + 100, updatedBalance);
         sqlEngine.commitTransaction(executionContext); 

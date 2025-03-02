@@ -9,7 +9,6 @@ public class ExpressionEvaluator {
     public static Object evaluate(Expression expr, Tuple tuple) {
         if (expr == null) return null;
 
-        System.out.println("Evaluating expression: " + expr.toString());
         return switch (expr.getType()) {
             case COLUMN_REF -> evaluateColumnRef(expr, tuple);
             case CONSTANT -> expr.getValue();
@@ -33,7 +32,7 @@ public class ExpressionEvaluator {
     }
 
     private static Object evaluateColumnRef(Expression expr, Tuple tuple) {
-        String[] parts = expr.getValue().split("\\.");
+        String[] parts = expr.getValue().toString().split("\\.");
         if (parts.length != 2) {
             throw new IllegalArgumentException("Invalid column reference: " + expr.getValue());
         }
@@ -65,6 +64,7 @@ public class ExpressionEvaluator {
     }
 
     private static Object evaluateArithmetic(Expression expr, Tuple tuple) {
+        System.out.println("Evaluating arithmetic expression: " + expr.toString());
         Object left = evaluate(expr.getLeft(), tuple);
         Object right = evaluate(expr.getRight(), tuple);
         

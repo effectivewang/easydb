@@ -40,19 +40,19 @@ public class UpdateExecutor implements PlanExecutor {
             tuples.add(tuple.get());
         }
         this.tupleIterator = tuples.iterator();
+
     }
 
     @Override
     public Optional<Tuple> next() {
         while (tupleIterator.hasNext()) {
             Tuple tuple = tupleIterator.next();
-            
+            System.out.println("UpdateExecutor - Tuple: " + tuple);
             // Double-check WHERE clause if needed
             Expression whereClause = operation.getWhereClause();
-            if (whereClause == null || (Boolean) ExpressionEvaluator.evaluate(whereClause, tuple)) {
                 // Evaluate SET expressions
                 Map<String, Object> updates = evaluateSetExpressions(tuple);
-
+                System.out.println("UpdateExecutor - Updates: " + updates);
                 Tuple updatedTuple = tuple.withUpdatedValues(updates, state.getCurrentTransaction().getXid());
                 
                 // Update tuple with new version
@@ -62,8 +62,7 @@ public class UpdateExecutor implements PlanExecutor {
                     state.getCurrentTransaction()
                 );
                 
-                return Optional.of(updatedTuple);
-            }
+            return Optional.of(updatedTuple);
         }
         return Optional.empty();
     }

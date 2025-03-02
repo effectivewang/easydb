@@ -155,6 +155,7 @@ public class Tuple {
             "id=" + id +
             ", values=" + Arrays.toString(values.toArray()) +
             ", header=" + header +
+            ", nextVersionId=" + nextVersionId +
             '}';
     }
 } 

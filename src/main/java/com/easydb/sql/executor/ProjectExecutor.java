@@ -116,7 +116,7 @@ public class ProjectExecutor implements PlanExecutor {
     private Object evaluateExpression(Expression expr, Tuple tuple) {
         return switch (expr.getType()) {
             case COLUMN_REF -> {
-                int columnIndex = operation.findColumnIndex(expr.getLeft().getValue());
+                int columnIndex = operation.findColumnIndex(expr.getValue().toString());
                 yield tuple.getValue(columnIndex);
             }
             case CONSTANT -> expr.getValue();

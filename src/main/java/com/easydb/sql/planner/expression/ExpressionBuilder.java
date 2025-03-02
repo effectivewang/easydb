@@ -104,8 +104,8 @@ public class ExpressionBuilder {
     }
 
     private static Expression buildConstant(ParseTree expr) {
-        String value = expr.getValue();
-        return new Expression(ExpressionType.CONSTANT, value);
+        Object parsedValue = ParseTreeHelper.getValue(expr);
+        return new Expression(ExpressionType.CONSTANT, parsedValue);
     }
 
     private static Expression buildFunctionCall(ParseTree functionCall, List<RangeTableEntry> rangeTable) {

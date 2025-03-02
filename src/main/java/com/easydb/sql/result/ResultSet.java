@@ -5,7 +5,6 @@ import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
 import com.easydb.storage.metadata.TableMetadata;
 
-
 import java.util.*;
 
 /**
@@ -64,7 +63,7 @@ public class ResultSet {
             if (value == null) return null;
             if (value instanceof Integer) return (Integer) value;
             if (value instanceof Long) return ((Long) value).intValue();
-            return Integer.parseInt(value.toString());
+            return (int) Double.parseDouble(value.toString());
         }
 
         public Boolean getBoolean(String columnName) {

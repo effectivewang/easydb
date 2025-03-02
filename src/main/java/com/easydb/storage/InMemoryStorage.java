@@ -110,9 +110,6 @@ public class InMemoryStorage implements Storage {
             .map(Optional::get)
             .filter(tuple -> matchesConditions(tuple, conditions))
             .collect(Collectors.toList());
-        System.out.println("scanTuples - Found " + tuples.size() + " tuples");
-        System.out.println("scanTuples - Conditions: " + conditions);
-        System.out.println("scanTuples - Trasnaction Id: " + txn.getXid());
         return tuples;
     }
 
@@ -151,14 +148,12 @@ public class InMemoryStorage implements Storage {
             txn.getXid()
         );
         currentTuple.setNextVersion(newVersionId);  // Point to new version
-
-        System.out.println("updateTuple - Updating tuple: " + newVersion);
-        System.out.println("updateTuple - Current tuple: " + currentTuple);
-        System.out.println("updateTuple - Transaction: " + txn.getXid());
        
         // Store new version
         tableTuples.put(newVersionId, newVersion);
         txn.recordWrite(newVersionId);
+
+        tableTuples.put(currentTuple.id(), currentTuple);
 
         // Update indexes with new version
         TableMetadata metadata = tables.get(newVersionId.tableName());
@@ -193,11 +188,7 @@ public class InMemoryStorage implements Storage {
         TupleId baseId = tupleId.getBaseId();
         Tuple tuple = tableTuples.get(baseId);
         
-        System.out.println("getTuple - Looking for tupleId: " + tupleId);
-        System.out.println("  Current transaction: " + txn.getXid());
-        
         if (tuple == null) {
-            System.out.println("  Base tuple not found");
             return Optional.empty();
         }
 
@@ -206,26 +197,20 @@ public class InMemoryStorage implements Storage {
         Tuple visibleVersion = null;
 
         while (currentVersion != null) {
-            System.out.println("    currentVersion: " + currentVersion);
-            
             if (isVisible(currentVersion, txn)) {
                 visibleVersion = currentVersion;
             }
             
-            // Move to next version
             TupleId nextId = currentVersion.getNextVersionId();
+            // Move to next version
             if (nextId == null || nextId.equals(currentVersion.id())) {
-                System.out.println("  End of version chain");
                 break;
             }
             currentVersion = tableTuples.get(nextId);
         }
 
         if (visibleVersion != null) {
-            System.out.println("Found visible version: " + visibleVersion.id());
             txn.recordRead(visibleVersion.id());
-        } else {
-            System.out.println("No visible version found");
         }
 
         return Optional.ofNullable(visibleVersion);
@@ -237,23 +222,19 @@ public class InMemoryStorage implements Storage {
 
         // Check if creating transaction is visible
         if (!transactionManager.isCommitted(xmin) && xmin != txn.getXid()) {
-            System.out.println("    Not visible: creator not committed and not current transaction");
             return false;
         }
 
         // Check if tuple is deleted
         if (xmax != 0) {
             if (xmax == txn.getXid()) {
-                System.out.println("    Not visible: deleted by current transaction");
                 return false;
             }
             if (transactionManager.isCommitted(xmax)) {
-                System.out.println("    Not visible: deleted by committed transaction");
                 return false;
             }
         }
 
-        System.out.println("    Visible: all checks passed");
         return true;
     }
 
@@ -273,14 +254,10 @@ public class InMemoryStorage implements Storage {
                 return false;
             }
             Object value = values.get(columnIndex);
-            System.out.println("Value: " + value + "type: " + value.getClass());
-            System.out.println("Entry value: " + entry.getValue() + "type: " + entry.getValue().getClass());
             boolean match = entry.getValue().equals(value);
-            System.out.println("Match: " + match);
             return match;
         });
 
-        System.out.println("Matches: " + matches);
         return matches;
     }
 
