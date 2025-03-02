@@ -7,6 +7,8 @@ import com.easydb.sql.planner.QueryPredicate;
 import com.easydb.sql.planner.operation.InsertOperation;
 import com.easydb.sql.planner.operation.SequentialScanOperation;
 import com.easydb.sql.planner.operation.IndexScanOperation;
+import com.easydb.sql.planner.operation.DeleteOperation;
+import com.easydb.sql.planner.operation.UpdateOperation;
 import com.easydb.sql.planner.operation.ProjectOperation;
 import com.easydb.sql.planner.operation.FilterOperation;
 import com.easydb.sql.executor.SequentialScanExecutor;
@@ -16,9 +18,9 @@ import com.easydb.sql.executor.ProjectExecutor;
 import com.easydb.sql.executor.FilterExecutor;
 import com.easydb.storage.transaction.Transaction;
 import com.easydb.storage.transaction.IsolationLevel;
-import com.easydb.sql.planner.operation.UpdateOperation;
 import com.easydb.sql.executor.UpdateExecutor;
 import com.easydb.sql.executor.DeleteExecutor;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,6 +110,18 @@ public class QueryExecutor {
                 (FilterOperation)node.getOperation(),
                 children.get(0),
                 state
+            );
+            case UPDATE -> new UpdateExecutor(
+                (UpdateOperation)node.getOperation(),
+                storage,
+                state,
+                children.get(0)
+            );
+            case DELETE -> new DeleteExecutor(
+                (DeleteOperation)node.getOperation(),
+                storage,
+                state,
+                children.get(0)
             );
             default -> throw new IllegalStateException("Unsupported operator: " + node.getOperator());
         };

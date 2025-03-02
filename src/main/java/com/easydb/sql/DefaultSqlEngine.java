@@ -50,8 +50,6 @@ public class DefaultSqlEngine implements SqlEngine {
             QueryTree queryTree = generateQueryTree(sql);
             QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
             List<Tuple> results = queryExecutor.execute(queryTree);
-            
-            executionContext.commitTransaction();
             return results.size();
         } catch (Exception e) {
             throw e;
@@ -74,8 +72,6 @@ public class DefaultSqlEngine implements SqlEngine {
             QueryTree queryTree = generateQueryTree(sql);
             QueryExecutor queryExecutor = new QueryExecutor(storage, executionContext);
             List<Tuple> results = queryExecutor.execute(queryTree);
-            
-            executionContext.commitTransaction();
             return new ResultSet.Builder().build(results);
         } catch (Exception e) {
             throw e;

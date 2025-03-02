@@ -36,6 +36,14 @@ public class ResultSet {
         return new Builder().build();
     }
 
+    @Override
+    public String toString() {
+        return "ResultSet{" +
+                "columns=" + Arrays.toString(columns.toArray()) +
+                ", rows=" + Arrays.toString(rows.toArray()) +
+                '}';
+    }
+
     /**
      * Represents a row in the result set.
      */
@@ -68,6 +76,13 @@ public class ResultSet {
 
         public Object getValue(String columnName) {
             return values.get(columnName);
+        }
+
+        @Override
+        public String toString() {
+            return "Row{" +
+                    "values=" + values +
+                    '}';
         }
     }
 

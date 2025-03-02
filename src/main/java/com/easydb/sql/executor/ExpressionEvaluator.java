@@ -9,8 +9,9 @@ public class ExpressionEvaluator {
     public static Object evaluate(Expression expr, Tuple tuple) {
         if (expr == null) return null;
 
+        System.out.println("Evaluating expression: " + expr.toString());
         return switch (expr.getType()) {
-            case COLUMN_REF -> tuple.getValue(expr.getValue());
+            case COLUMN_REF -> evaluateColumnRef(expr, tuple);
             case CONSTANT -> expr.getValue();
             case ARITHMETIC -> evaluateArithmetic(expr, tuple);
             
@@ -29,6 +30,17 @@ public class ExpressionEvaluator {
             
             default -> throw new IllegalArgumentException("Unsupported expression type: " + expr.getType());
         };
+    }
+
+    private static Object evaluateColumnRef(Expression expr, Tuple tuple) {
+        String[] parts = expr.getValue().split("\\.");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Invalid column reference: " + expr.getValue());
+        }
+
+        String tableName = parts[0];
+        String columnName = parts[1];
+        return tuple.getValue(columnName);
     }
 
     private static Boolean evaluateAnd(Expression expr, Tuple tuple) {

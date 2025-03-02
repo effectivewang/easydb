@@ -36,22 +36,23 @@ class MVCCSqlTest {
         transactionManager = new TransactionManager();
         storage = new InMemoryStorage(transactionManager);
         sqlEngine = new DefaultSqlEngine(storage);
-        setupTestData(new ExecutionContext(transactionManager));
+        setupTestData(transactionManager);
     }
 
     @Test
     void testReadCommitted() throws ExecutionException, InterruptedException {
         // Start transaction 1 with READ COMMITTED isolation
         ExecutionContext executionContext = new ExecutionContext(transactionManager);
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED", executionContext);
+        executionContext.beginTransaction();
 
         // Start transaction 2
         ExecutionContext executionContext2 = new ExecutionContext(transactionManager);
-        sqlEngine.executeUpdate("SET TRANSACTION ISOLATION LEVEL READ COMMITTED", executionContext2);
+        executionContext2.beginTransaction();
 
         // Transaction 1 reads data
         ResultSet result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1", executionContext);
+        System.out.println(result1.toString());
         int initialBalance = result1.getRows().get(0).getInteger("balance");
 
         // Transaction 2 updates data
@@ -194,7 +195,8 @@ class MVCCSqlTest {
 
  */
 
- private void setupTestData(ExecutionContext executionContext) {
+ private void setupTestData(TransactionManager transactionManager) {
+    ExecutionContext executionContext = new ExecutionContext(transactionManager);
         // Create accounts table
         sqlEngine.executeUpdate("""
             CREATE TABLE accounts (
@@ -211,5 +213,7 @@ class MVCCSqlTest {
             (2, 12, 2000),
             (3, 13, 3000)
             """, executionContext);
+
+        executionContext.commitTransaction();
 }
 } 

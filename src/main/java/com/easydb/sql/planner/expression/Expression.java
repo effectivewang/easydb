@@ -3,6 +3,7 @@ package com.easydb.sql.planner.expression;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
+import com.easydb.sql.planner.RangeTableEntry;
 
 /**
  * Represents an expression in a query, similar to PostgreSQL's Expr node.
@@ -93,6 +94,15 @@ public class Expression {
                 yield sb.append(')').toString();
             }
             case ARITHMETIC -> "(" + left + " " + operator + " " + right + ")";
+            case AND -> "(" + left + " AND " + right + ")";
+            case OR -> "(" + left + " OR " + right + ")";
+            case NOT -> "NOT (" + value + ")";
+            case EQUALS -> "(" + left + " = " + right + ")";
+            case NOT_EQUALS -> "(" + left + " <> " + right + ")";
+            case LESS_THAN -> "(" + left + " < " + right + ")";
+            case LESS_EQUAL -> "(" + left + " <= " + right + ")";
+            case GREATER_THAN -> "(" + left + " > " + right + ")";
+            case GREATER_EQUAL -> "(" + left + " >= " + right + ")";
             default -> throw new IllegalStateException("Unknown expression type: " + type);
         };
     }
@@ -143,4 +153,5 @@ public class Expression {
     public static Expression not(Expression operand) {
         return new Expression(ExpressionType.NOT, null, operand, null);
     }
-} 
+
+}
