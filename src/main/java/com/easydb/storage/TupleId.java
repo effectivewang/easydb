@@ -1,7 +1,5 @@
 package com.easydb.storage;
 
-import java.time.Instant;
-import java.util.UUID;
 import java.util.Objects;
 
 /**
@@ -86,6 +84,6 @@ public class TupleId implements Comparable<TupleId> {
     }
 
     public static TupleId create(String tableName) {
-        return new TupleId(tableName, Instant.now().toEpochMilli());
+        return TupleIdGenerator.nextId(tableName);
     }
 } 

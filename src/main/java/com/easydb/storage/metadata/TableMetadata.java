@@ -166,5 +166,12 @@ public class TableMetadata {
         return indexes.get(columnName);
     }
 
+    public String toString() {
+        return "TableMetadata{" +
+            "tableName=" + tableName +
+            ", columns=" + columns.stream().map(Column::toString).collect(Collectors.joining(", ")) +
+            ", indexes=" + indexes.values().stream().map(IndexMetadata::toString).collect(Collectors.joining(", ")) +
+            '}';
+    }
 
 } 

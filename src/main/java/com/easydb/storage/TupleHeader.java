@@ -72,4 +72,14 @@ public class TupleHeader {
     public long getXmin() { return xmin; }
     public long getXmax() { return xmax; }
 
+    @Override
+    public String toString() {
+        return "TupleHeader{" +
+            "id=" + id +
+            ", metadata=" + metadata +
+            ", xmin=" + xmin +
+            ", xmax=" + xmax +
+            '}';
+    }
+
 } 

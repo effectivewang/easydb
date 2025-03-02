@@ -59,7 +59,6 @@ public class InsertExecutor implements PlanExecutor {
             header,
             state.getCurrentTransaction().getXid()
         );
-        
         storage.insertTuple(
             tuple,
             state.getCurrentTransaction()

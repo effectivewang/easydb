@@ -95,15 +95,25 @@ public class InMemoryStorage implements Storage {
     }
 
     @Override
-    public List<Tuple> scanTuples(String tableName, Map<String, Object> conditions, 
-                                 Transaction txn) {
-        return tableTuples.values().stream()
-            .filter(tuple -> tuple.id().tableName().equals(tableName))
-            // Use Tuple's isVisible method
-            .filter(tuple -> tuple.isVisible(txn))
-            .filter(tuple -> matchesConditions(tuple, conditions))
-            .peek(tuple -> txn.recordRead(tuple.id()))
+    public List<Tuple> scanTuples(String tableName, Map<String, Object> conditions, Transaction txn) {
+        // First get all base tuple IDs for the table
+        List<TupleId> tableTupleIds = tableTuples.keySet().stream()
+            .filter(id -> id.tableName().equals(tableName))
+            .map(TupleId::getBaseId)  // Get base version IDs
+            .distinct()  // Remove duplicates
             .collect(Collectors.toList());
+        
+        // For each base tuple ID, get the visible version using getTuple
+        List<Tuple> tuples = tableTupleIds.stream()
+            .map(tupleId -> getTuple(tupleId, txn))  // Use getTuple for MVCC visibility
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .filter(tuple -> matchesConditions(tuple, conditions))
+            .collect(Collectors.toList());
+        System.out.println("scanTuples - Found " + tuples.size() + " tuples");
+        System.out.println("scanTuples - Conditions: " + conditions);
+        System.out.println("scanTuples - Trasnaction Id: " + txn.getXid());
+        return tuples;
     }
 
     @Override
@@ -142,6 +152,10 @@ public class InMemoryStorage implements Storage {
         );
         currentTuple.setNextVersion(newVersionId);  // Point to new version
 
+        System.out.println("updateTuple - Updating tuple: " + newVersion);
+        System.out.println("updateTuple - Current tuple: " + currentTuple);
+        System.out.println("updateTuple - Transaction: " + txn.getXid());
+       
         // Store new version
         tableTuples.put(newVersionId, newVersion);
         txn.recordWrite(newVersionId);
@@ -179,7 +193,11 @@ public class InMemoryStorage implements Storage {
         TupleId baseId = tupleId.getBaseId();
         Tuple tuple = tableTuples.get(baseId);
         
+        System.out.println("getTuple - Looking for tupleId: " + tupleId);
+        System.out.println("  Current transaction: " + txn.getXid());
+        
         if (tuple == null) {
+            System.out.println("  Base tuple not found");
             return Optional.empty();
         }
 
@@ -188,21 +206,26 @@ public class InMemoryStorage implements Storage {
         Tuple visibleVersion = null;
 
         while (currentVersion != null) {
+            System.out.println("    currentVersion: " + currentVersion);
+            
             if (isVisible(currentVersion, txn)) {
                 visibleVersion = currentVersion;
-                break;  // Found the visible version
             }
             
             // Move to next version
             TupleId nextId = currentVersion.getNextVersionId();
             if (nextId == null || nextId.equals(currentVersion.id())) {
-                break;  // End of chain
+                System.out.println("  End of version chain");
+                break;
             }
             currentVersion = tableTuples.get(nextId);
         }
 
         if (visibleVersion != null) {
+            System.out.println("Found visible version: " + visibleVersion.id());
             txn.recordRead(visibleVersion.id());
+        } else {
+            System.out.println("No visible version found");
         }
 
         return Optional.ofNullable(visibleVersion);
@@ -210,23 +233,27 @@ public class InMemoryStorage implements Storage {
 
     private boolean isVisible(Tuple tuple, Transaction txn) {
         long xmin = tuple.getXmin();  // Creating transaction
-        long xmax = tuple.getXmax();  // Deleting transaction (or 0 if not deleted)
+        long xmax = tuple.getXmax();  // Deleting transaction
 
         // Check if creating transaction is visible
         if (!transactionManager.isCommitted(xmin) && xmin != txn.getXid()) {
-            return false;  // Created by uncommitted transaction (except our own)
+            System.out.println("    Not visible: creator not committed and not current transaction");
+            return false;
         }
 
         // Check if tuple is deleted
         if (xmax != 0) {
             if (xmax == txn.getXid()) {
-                return false;  // Deleted by current transaction
+                System.out.println("    Not visible: deleted by current transaction");
+                return false;
             }
             if (transactionManager.isCommitted(xmax)) {
-                return false;  // Deleted by committed transaction
+                System.out.println("    Not visible: deleted by committed transaction");
+                return false;
             }
         }
 
+        System.out.println("    Visible: all checks passed");
         return true;
     }
 

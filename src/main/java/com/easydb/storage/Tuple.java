@@ -150,4 +150,11 @@ public class Tuple {
     public TableMetadata getMetadata() {
         return header.getMetadata();
     }
+    public String toString() {
+        return "Tuple{" +
+            "id=" + id +
+            ", values=" + Arrays.toString(values.toArray()) +
+            ", header=" + header +
+            '}';
+    }
 } 

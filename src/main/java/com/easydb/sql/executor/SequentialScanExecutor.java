@@ -6,6 +6,7 @@ import com.easydb.sql.executor.QueryExecutorState;
 import com.easydb.sql.executor.PlanExecutor;
 import com.easydb.sql.planner.operation.SequentialScanOperation;
 import com.easydb.sql.executor.PredicateEvaluator;
+import com.easydb.sql.planner.QueryPredicate;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -34,8 +35,10 @@ public class SequentialScanExecutor implements PlanExecutor {
         // Get table from range table entry
         String tableName = operation.getRangeTableEntry().getTableName();
 
-        // Start table scan
-        List<Tuple> tuples = storage.scanTuples(tableName, new HashMap<>(), state.getCurrentTransaction()); // TODO: add predicate
+        // Convert predicate to condition map
+        Map<String, Object> conditions = new HashMap<>();
+        // Start table scan with conditions
+        List<Tuple> tuples = storage.scanTuples(tableName, conditions, state.getCurrentTransaction());
         this.tupleIterator = tuples.iterator();
     }
 

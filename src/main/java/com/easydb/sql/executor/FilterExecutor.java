@@ -45,7 +45,6 @@ public class FilterExecutor implements PlanExecutor {
 
             // Get values for predicate evaluation
             List<Object> values = tuple.get().getValues();
-
             // Evaluate predicate
             if (PredicateEvaluator.evaluate(
                     operation.getPredicate(),
@@ -53,7 +52,6 @@ public class FilterExecutor implements PlanExecutor {
                     operation.getRangeTableEntry())) {
                 return tuple;
             }
-            // Continue to next tuple if predicate fails
         }
     }
 

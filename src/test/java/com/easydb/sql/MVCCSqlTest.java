@@ -49,18 +49,24 @@ class MVCCSqlTest {
         ExecutionContext executionContext2 = new ExecutionContext(transactionManager);
         executionContext2.beginTransaction();
 
-        // Transaction 1 reads data
+        // Transaction 1 reads data, should see initial data
         ResultSet result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1", executionContext);
         System.out.println(result1.toString());
         int initialBalance = result1.getRows().get(0).getInteger("balance");
+        assertEquals(1000, initialBalance);
 
-        // Transaction 2 updates data
-        sqlEngine.executeUpdate(
+        // Transaction 2 updates data but uncommits, Transaction 1 should not see commited data
+         sqlEngine.executeUpdate(
             "UPDATE accounts SET balance = balance + 100 WHERE id = 1", executionContext2);
-        sqlEngine.commitTransaction(executionContext2);
+        result1 = sqlEngine.executeQuery(
+            "SELECT balance FROM accounts WHERE id = 1", executionContext);
+        System.out.println(result1.toString());
+        int uncommittedBalance = result1.getRows().get(0).getInteger("balance");
+        assertEquals(1000, uncommittedBalance);
 
-        // Transaction 1 reads again - should see updated data  
+        // Transaction 2 commits, Transaction 1 reads again - should see commited data  
+        sqlEngine.commitTransaction(executionContext2);
         result1 = sqlEngine.executeQuery(
             "SELECT balance FROM accounts WHERE id = 1", executionContext);
         int updatedBalance = (Integer) result1.getRows().get(0).getInteger("balance");
