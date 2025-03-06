@@ -10,31 +10,54 @@ import java.util.Objects;
 
 /**
  * Represents predicates for SQL query conditions.
- * Simplified to handle single column-value comparisons and logical operations.
+ * Similar to PostgreSQL's Expr structure.
  */
-public class QueryPredicate implements Operation {
+public class QueryPredicate {
     private final PredicateType type;
-    private final String column;           // Single column name
-    private final Object value;           // Single value
-    private final List<QueryPredicate> subPredicates;
+    private final String column;
+    private final Object value;
+    private final QueryPredicate left;
+    private final QueryPredicate right;
 
     // Constructor for comparison predicates
-    private QueryPredicate(PredicateType type, String column, Object value) {
+    public QueryPredicate(PredicateType type, String column, Object value) {
         this.type = type;
         this.column = column;
         this.value = value;
-        this.subPredicates = new ArrayList<>();
+        this.left = null;
+        this.right = null;
     }
 
     // Constructor for logical operations (AND, OR, NOT)
-    private QueryPredicate(PredicateType type, List<QueryPredicate> predicates) {
+    public QueryPredicate(PredicateType type, QueryPredicate left, QueryPredicate right) {
         this.type = type;
         this.column = null;
         this.value = null;
-        this.subPredicates = new ArrayList<>(predicates);
+        this.left = left;
+        this.right = right;
     }
 
-    // Factory methods for comparison predicates
+    public PredicateType getType() {
+        return type;
+    }
+
+    public String getColumn() {
+        return column;
+    }
+
+    public Object getValue() {
+        return value;
+    }
+
+    public QueryPredicate getLeft() {
+        return left;
+    }
+
+    public QueryPredicate getRight() {
+        return right;
+    }
+
+    // Factory methods for creating predicates
     public static QueryPredicate equals(String column, Object value) {
         return new QueryPredicate(PredicateType.EQUALS, column, value);
     }
@@ -59,119 +82,23 @@ public class QueryPredicate implements Operation {
         return new QueryPredicate(PredicateType.GREATER_THAN_OR_EQUALS, column, value);
     }
 
-    public static QueryPredicate comparison(ParseTreeType operator, String column, Object value) {
-        switch (operator) {
-            case EQUALS_OPERATOR:
-                return equals(column, value);
-            case NOT_EQUALS_OPERATOR:
-                return notEquals(column, value);
-            case LESS_THAN_OPERATOR:
-                return lessThan(column, value);
-            case GREATER_THAN_OPERATOR:
-                return greaterThan(column, value);  
-            case LESS_THAN_EQUALS_OPERATOR:
-                return lessThanOrEquals(column, value);
-            case GREATER_THAN_EQUALS_OPERATOR:
-                return greaterThanOrEquals(column, value);
-            default:
-                throw new IllegalArgumentException("Unsupported operator: " + operator);
-        }
-    }
-
     public static QueryPredicate isNull(String column) {
         return new QueryPredicate(PredicateType.IS_NULL, column, null);
     }
 
-    // Factory methods for logical operations
-    public static QueryPredicate and(List<QueryPredicate> predicates) {
-        return new QueryPredicate(PredicateType.AND, predicates);
+    public static QueryPredicate and(QueryPredicate left, QueryPredicate right) {
+        return new QueryPredicate(PredicateType.AND, left, right);
     }
 
-    public static QueryPredicate or(List<QueryPredicate> predicates) {
-        return new QueryPredicate(PredicateType.OR, predicates);
+    public static QueryPredicate or(QueryPredicate left, QueryPredicate right) {
+        return new QueryPredicate(PredicateType.OR, left, right);
     }
 
     public static QueryPredicate not(QueryPredicate predicate) {
-        return new QueryPredicate(PredicateType.NOT, List.of(predicate));
-    }
-
-    // Getters
-    public PredicateType getPredicateType() {
-        return type;
-    }
-
-    public String getColumn() {
-        return column;
-    }
-
-    public Object getValue() {
-        return value;
-    }
-
-    public List<QueryPredicate> getSubPredicates() {
-        return new ArrayList<>(subPredicates);
-    }
-
-    public PredicateType getType() {
-        return type;
-    }
-
-    @Override
-    public QueryOperator getOperator() {
-        return QueryOperator.INSERT;
-    }
-
-    @Override
-    public String toString() {
-        return switch (type) {
-            case EQUALS -> formatComparison("=");
-            case NOT_EQUALS -> formatComparison("!=");
-            case LESS_THAN -> formatComparison("<");
-            case GREATER_THAN -> formatComparison(">");
-            case LESS_THAN_OR_EQUALS -> formatComparison("<=");
-            case GREATER_THAN_OR_EQUALS -> formatComparison(">=");
-            case IS_NULL -> formatIsNull();
-            case AND -> formatLogical(" AND ");
-            case OR -> formatLogical(" OR ");
-            case NOT -> formatNot();
-        };
-    }
-
-    private String formatComparison(String operator) {
-        String valueStr = formatValue(value);
-        return String.format("%s %s %s", column, operator, valueStr);
-    }
-
-    private String formatIsNull() {
-        return String.format("%s IS NULL", column);
-    }
-
-    private String formatLogical(String operator) {
-        if (subPredicates.isEmpty()) {
-            return "";
-        }
-        return subPredicates.stream()
-                .map(Object::toString)
-                .collect(Collectors.joining(operator));
-    }
-
-    private String formatNot() {
-        if (subPredicates.isEmpty()) {
-            return "NOT";
-        }
-        return "NOT (" + subPredicates.get(0).toString() + ")";
-    }
-
-    private String formatValue(Object value) {
-        if (value == null) {
-            return "NULL";
-        }
-        // Don't quote simple values in the output
-        return value.toString();
+        return new QueryPredicate(PredicateType.NOT, predicate, null);
     }
 
     public enum PredicateType {
-        // Comparison operators
         EQUALS,
         NOT_EQUALS,
         LESS_THAN,
@@ -179,11 +106,20 @@ public class QueryPredicate implements Operation {
         LESS_THAN_OR_EQUALS,
         GREATER_THAN_OR_EQUALS,
         IS_NULL,
-        
-        // Logical operators
         AND,
         OR,
         NOT
+    }
+
+    @Override
+    public String toString() {
+        if (type == PredicateType.AND || type == PredicateType.OR) {
+            return String.format("(%s %s %s)", left, type, right);
+        } else if (type == PredicateType.NOT) {
+            return String.format("NOT %s", left);
+        } else {
+            return String.format("%s %s %s", column, type, value);
+        }
     }
 
     @Override
@@ -194,13 +130,12 @@ public class QueryPredicate implements Operation {
         return type == that.type &&
                Objects.equals(column, that.column) &&
                Objects.equals(value, that.value) &&
-               Objects.equals(subPredicates, that.subPredicates);
+               Objects.equals(left, that.left) &&
+               Objects.equals(right, that.right);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, column, value, subPredicates);
+        return Objects.hash(type, column, value, left, right);
     }
-
-    
 } 

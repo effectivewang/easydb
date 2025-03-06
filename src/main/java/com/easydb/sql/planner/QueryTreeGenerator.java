@@ -2,28 +2,23 @@ package com.easydb.sql.planner;
 
 import com.easydb.storage.Storage;
 import com.easydb.storage.metadata.TableMetadata;
+import com.easydb.storage.metadata.IndexMetadata;
+import com.easydb.storage.Tuple;
+import com.easydb.storage.transaction.Transaction;
 import com.easydb.index.Index;
 import com.easydb.index.HashIndex;
 import com.easydb.index.IndexType;
-import com.easydb.storage.Tuple;
 import com.easydb.sql.parser.ParseTree;
 import com.easydb.sql.parser.ParseTreeType;
-import com.easydb.sql.planner.operation.IndexScanOperation;
-import com.easydb.sql.planner.operation.SequentialScanOperation;
-import com.easydb.sql.planner.operation.ProjectOperation;
-import com.easydb.sql.planner.operation.InsertOperation;
-import com.easydb.sql.planner.operation.FilterOperation;
-import com.easydb.sql.planner.operation.UpdateOperation;
-import com.easydb.sql.planner.operation.DeleteOperation;
-import com.easydb.sql.planner.expression.ExpressionBuilder;
+import com.easydb.sql.planner.operation.*;
 import com.easydb.sql.planner.expression.Expression;
-import com.easydb.storage.metadata.IndexMetadata;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Arrays;
+import com.easydb.sql.planner.expression.ExpressionBuilder;
+import com.easydb.sql.planner.expression.TypeConverter;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.Optional;
 /**
  * Generates a query execution plan (QueryTree) from a parse tree.
  */
@@ -68,7 +63,7 @@ public class QueryTreeGenerator {
         // Apply WHERE clause filters and decide on index usage
         ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
         if (whereClause != null) {
-            QueryPredicate predicate = generatePredicate(whereClause.getChild(0), queryContext);
+            Expression predicate = generatePredicate(whereClause.getChild(0), queryContext);
             result = optimizeAccessPath(result, predicate, queryContext);
         }
 
@@ -99,7 +94,7 @@ public class QueryTreeGenerator {
         return result;
     }
 
-    private QueryTree optimizeAccessPath(QueryTree scanNode, QueryPredicate predicate, QueryContext queryContext) {
+    private QueryTree optimizeAccessPath(QueryTree scanNode, Expression predicate, QueryContext queryContext) {
         if (scanNode.getOperator() != QueryOperator.SEQUENTIAL_SCAN) {
             // Only optimize base table scans
             return addFilter(scanNode, predicate, queryContext);
@@ -109,36 +104,204 @@ public class QueryTreeGenerator {
         TableMetadata metadata = rte.getMetadata();
 
         // Check if we can use an index for this predicate
-        if (shouldUseIndexScan(metadata, predicate)) {
+        IndexMetadata bestIndex = findBestIndex(metadata, predicate);
+        if (bestIndex != null) {
             // Replace sequential scan with index scan
             QueryTree indexScan = createIndexScan(metadata, rte.getTableName(), predicate, queryContext.getRangeTable());
+            
+            // Estimate cost for the index scan
+            double rowsPerKey = 1.0; // Assume unique index by default
+            if (!bestIndex.isUnique()) {
+                // For non-unique indexes, estimate 10% of table rows per key
+                rowsPerKey = Math.max(1, metadata.estimatedRows() * 0.1);
+            }
+            
+            // Set cost and row estimates
+            indexScan.setEstimatedRows((long)rowsPerKey);
+            indexScan.setEstimatedCost(rowsPerKey * 1.0); // Index lookup cost
+            
             return indexScan;
         }
 
         // Fall back to filter on sequential scan
-        return addFilter(scanNode, predicate, queryContext);
+        QueryTree filteredScan = addFilter(scanNode, predicate, queryContext);
+        
+        // Estimate selectivity for the filter (default to 30% of rows passing)
+        double selectivity = estimateSelectivity(predicate, metadata);
+        double estimatedRows = metadata.estimatedRows() * selectivity;
+        
+        filteredScan.setEstimatedRows((long)estimatedRows);
+        filteredScan.setEstimatedCost(metadata.estimatedRows() + estimatedRows); // Full scan + filter cost
+        
+        return filteredScan;
     }
 
-    private boolean shouldUseIndexScan(TableMetadata metadata, QueryPredicate predicate) {
-        // Only consider simple equality predicates for index scans
-        if (predicate.getType() != QueryPredicate.PredicateType.EQUALS) {
+    /**
+     * Estimates the selectivity of a predicate (what fraction of rows will pass)
+     */
+    private double estimateSelectivity(Expression predicate, TableMetadata metadata) {
+        if (predicate == null) return 1.0;
+        
+        switch (predicate.getType()) {
+            case COMPARISON:
+                switch (predicate.getOperator()) {
+                    case EQUALS:
+                        return 0.1; // Assume 10% selectivity for equality
+                    case NOT_EQUALS:
+                        return 0.9; // Assume 90% selectivity for inequality
+                    case LESS_THAN:
+                    case GREATER_THAN:
+                        return 0.3; // Assume 30% selectivity for range conditions
+                    case LESS_EQUAL:
+                    case GREATER_EQUAL:
+                        return 0.4; // Assume 40% selectivity for inclusive range
+                    default:
+                        return 0.3;
+                }
+            case LOGICAL:
+                switch (predicate.getOperator()) {
+                    case AND:
+                        return estimateSelectivity(predicate.getLeft(), metadata) * 
+                               estimateSelectivity(predicate.getRight(), metadata);
+                    case OR:
+                        return Math.min(1.0, 
+                            estimateSelectivity(predicate.getLeft(), metadata) + 
+                            estimateSelectivity(predicate.getRight(), metadata));
+                    default:
+                        return 0.3;
+                }
+            case NOT:
+                return 1.0 - estimateSelectivity(predicate.getLeft(), metadata);
+            default:
+                return 0.3;
+        }
+    }
+
+    private boolean shouldUseIndexScan(TableMetadata metadata, Expression predicate) {
+        // Check if there's a suitable index for this predicate
+        return findBestIndex(metadata, predicate) != null;
+    }
+
+    private IndexMetadata findBestIndex(TableMetadata metadata, Expression predicate) {
+        // No indexes available
+        if (metadata.indexes().isEmpty()) {
+            return null;
+        }
+        
+        // For compound predicates, try to find indexes for the components
+        if (predicate.getType() == Expression.ExpressionType.LOGICAL && 
+            predicate.getOperator() == Expression.Operator.AND) {
+            // Try left subtree first
+            IndexMetadata leftIndex = findBestIndex(metadata, predicate.getLeft());
+            if (leftIndex != null) {
+                return leftIndex;
+            }
+            // Try right subtree
+            return findBestIndex(metadata, predicate.getRight());
+        }
+        
+        // Find all usable indexes for this predicate
+        List<IndexMetadata> usableIndexes = metadata.indexes().values().stream()
+            .filter(index -> isIndexUsable(index, predicate))
+            .collect(Collectors.toList());
+        
+        if (usableIndexes.isEmpty()) {
+            return null;
+        }
+        
+        // Prefer unique indexes over non-unique
+        Optional<IndexMetadata> uniqueIndex = usableIndexes.stream()
+            .filter(IndexMetadata::isUnique)
+            .findFirst();
+        
+        if (uniqueIndex.isPresent()) {
+            return uniqueIndex.get();
+        }
+        
+        // Otherwise, return the first usable index
+        return usableIndexes.get(0);
+    }
+
+    private boolean isIndexUsable(IndexMetadata index, Expression predicate) {
+        if (predicate.getType() != Expression.ExpressionType.COMPARISON) {
             return false;
         }
 
-        String columnName = predicate.getColumn();
-        if (columnName == null) {
-            return false;
+        String column = predicate.getLeft().getValue().toString();
+        
+        switch (predicate.getOperator()) {
+            case EQUALS:
+            case NOT_EQUALS:
+                return index.columns().contains(column);
+                
+            case LESS_THAN:
+            case GREATER_THAN:
+            case LESS_EQUAL:
+            case GREATER_EQUAL:
+                return !index.columns().isEmpty() && 
+                       index.columns().get(0).equals(column);
+                       
+            default:
+                return false;
         }
+    }
 
-        // Check if there's a usable index
-        return metadata.indexes().values().stream()
-            .anyMatch(index -> {
-                // For now, only consider single-column indexes
-                return index.columnNames().size() == 1 &&
-                       index.hasColumn(columnName) &&
-                       (index.type() == IndexType.HASH || 
-                        index.type() == IndexType.BTREE);
-            });
+    private Expression extractIndexCondition(Expression predicate, IndexMetadata indexMetadata) {
+        // For compound predicates, extract the part that can use the index
+        if (predicate.getType() == Expression.ExpressionType.LOGICAL && 
+            predicate.getOperator() == Expression.Operator.AND) {
+            Expression leftCondition = extractIndexCondition(predicate.getLeft(), indexMetadata);
+            if (leftCondition != null) {
+                return leftCondition;
+            }
+            return extractIndexCondition(predicate.getRight(), indexMetadata);
+        }
+        
+        // For simple predicates, check if they can use the index
+        if (isIndexUsable(indexMetadata, predicate)) {
+            return predicate;
+        }
+        
+        return null;
+    }
+
+    private Expression extractRemainingPredicate(Expression original, Expression indexCondition) {
+        if (original == null || indexCondition == null) {
+            return original;
+        }
+        
+        // If they're the same predicate, there's no remaining condition
+        if (original.equals(indexCondition)) {
+            return null;
+        }
+        
+        // For AND predicates, remove the index condition
+        if (original.getType() == Expression.ExpressionType.LOGICAL && 
+            original.getOperator() == Expression.Operator.AND) {
+            Expression left = original.getLeft();
+            Expression right = original.getRight();
+            
+            if (left.equals(indexCondition)) {
+                return right;
+            } else if (right.equals(indexCondition)) {
+                return left;
+            } else {
+                // Recursively check subtrees
+                Expression remainingLeft = extractRemainingPredicate(left, indexCondition);
+                Expression remainingRight = extractRemainingPredicate(right, indexCondition);
+                
+                if (remainingLeft == null) {
+                    return remainingRight;
+                } else if (remainingRight == null) {
+                    return remainingLeft;
+                } else {
+                    return Expression.logical(Expression.Operator.AND, remainingLeft, remainingRight);
+                }
+            }
+        }
+        
+        // For other types, keep the original
+        return original;
     }
 
     private QueryTree generateFromTree(ParseTree fromClause, QueryContext queryContext) {
@@ -179,7 +342,7 @@ public class QueryTreeGenerator {
     private QueryTree createIndexScan(
             TableMetadata metadata, 
             String tableName, 
-            QueryPredicate predicate, 
+            Expression predicate, 
             List<RangeTableEntry> rangeTable) {
         
         // Find the appropriate index for this predicate
@@ -189,8 +352,8 @@ public class QueryTreeGenerator {
         }
 
         // Split predicate into index condition and filter condition
-        QueryPredicate indexCondition = extractIndexCondition(predicate, indexMetadata);
-        QueryPredicate filterPredicate = extractRemainingPredicate(predicate, indexCondition);
+        Expression indexCondition = extractIndexCondition(predicate, indexMetadata);
+        Expression filterPredicate = extractRemainingPredicate(predicate, indexCondition);
 
         // Find the RTE for this table
         RangeTableEntry rte = findRangeTableEntry(rangeTable, tableName);
@@ -201,62 +364,6 @@ public class QueryTreeGenerator {
             metadata.columnNames(),
             rangeTable
         );
-    }
-
-    private IndexMetadata findBestIndex(TableMetadata metadata, QueryPredicate predicate) {
-        // Find an index that matches the predicate columns
-        return metadata.indexes().values().stream()
-            .filter(index -> isIndexUsable(index, predicate))
-            .findFirst()
-            .orElse(null);
-    }
-
-    private boolean isIndexUsable(IndexMetadata index, QueryPredicate predicate) {
-        // For now, only consider single-column indexes and equality predicates
-        if (predicate.getPredicateType() != QueryPredicate.PredicateType.EQUALS) {
-            return false;
-        }
-
-        String columnName = predicate.getColumn();
-        return index.columnNames().size() == 1 &&
-               index.hasColumn(columnName) &&
-               (index.type() == IndexType.HASH || index.type() == IndexType.BTREE);
-    }
-
-    private QueryPredicate extractIndexCondition(QueryPredicate predicate, IndexMetadata indexMetadata) {
-        if (predicate.getPredicateType() == QueryPredicate.PredicateType.AND) {
-            // For compound predicates, extract the parts that can use the index
-            return predicate.getSubPredicates().stream()
-                .filter(subPred -> isIndexUsable(indexMetadata, subPred))
-                .findFirst()
-                .orElse(null);
-        }
-        
-        // For simple predicates, use it directly if it matches the index
-        return isIndexUsable(indexMetadata, predicate) ? predicate : null;
-    }
-
-    private QueryPredicate extractRemainingPredicate(QueryPredicate original, QueryPredicate indexCondition) {
-        if (original == indexCondition) {
-            return null;  // No remaining predicate
-        }
-        
-        if (original.getPredicateType() == QueryPredicate.PredicateType.AND) {
-            // Remove the index condition from AND predicate
-            List<QueryPredicate> remaining = original.getSubPredicates().stream()
-                .filter(subPred -> !subPred.equals(indexCondition))
-                .collect(Collectors.toList());
-            
-            if (remaining.isEmpty()) {
-                return null;
-            } else if (remaining.size() == 1) {
-                return remaining.get(0);
-            } else {
-                return QueryPredicate.and(remaining);
-            }
-        }
-        
-        return original;  // Keep original predicate if not used for index
     }
 
     private QueryTree createJoinTree(List<QueryTree> scans, List<RangeTableEntry> rangeTable) {
@@ -289,12 +396,7 @@ public class QueryTreeGenerator {
         return join;
     }
 
-    private QueryTree addFilter(QueryTree input, ParseTree filterExpr, QueryContext queryContext) {
-        QueryPredicate predicate = generatePredicate(filterExpr, queryContext);
-        return addFilter(input, predicate, queryContext);
-    }
-    
-    private QueryTree addFilter(QueryTree input, QueryPredicate predicate, QueryContext queryContext) {
+    private QueryTree addFilter(QueryTree input, Expression predicate, QueryContext queryContext) {
         QueryTree filter = new QueryTree(
             QueryOperator.FILTER,
             new FilterOperation(predicate, input.getRangeTable().get(0)),
@@ -376,37 +478,12 @@ public class QueryTreeGenerator {
     }
     
 
-    private QueryPredicate generatePredicate(ParseTree expr, QueryContext queryContext) {
-        switch (expr.getType()) {
-            case BINARY_EXPR:
-                return generateBinaryPredicate(expr, queryContext);
-            case COLUMN_REF:
-                return generateColumnPredicate(expr, queryContext);
-            case COMPARISON_OPERATOR:
-                return generateComparisonPredicate(expr, queryContext);
-            default:
-                throw new IllegalArgumentException("Unsupported expression type: " + expr.getType());
-        }
+    private Expression generatePredicate(ParseTree expr, QueryContext queryContext) {
+        return ExpressionBuilder.build(expr, queryContext.getRangeTable());
     }
 
-    private QueryPredicate generateBinaryPredicate(ParseTree expr, QueryContext queryContext) {
-        ParseTree left = expr.getChild(0);
-        ParseTree operator = expr.getChild(1);
-        ParseTree right = expr.getChild(2);
-
-        // Convert operator type to predicate type
-        switch (operator.getType()) {
-            case EQUALS_OPERATOR:
-                return QueryPredicate.equals(left.getValue(), parseValue(right));
-            case NOT_EQUALS_OPERATOR:
-                return QueryPredicate.notEquals(left.getValue(), parseValue(right));
-            case LESS_THAN_OPERATOR:
-                return QueryPredicate.lessThan(left.getValue(), parseValue(right));
-            case GREATER_THAN_OPERATOR:
-                return QueryPredicate.greaterThan(left.getValue(), parseValue(right));
-            default:
-                throw new IllegalArgumentException("Unsupported operator type: " + operator.getType());
-        }
+    private Object parseValue(ParseTree value) {
+        return TypeConverter.convertValue(value);
     }
 
     private ParseTree findChildOfType(ParseTree tree, ParseTreeType type) {
@@ -525,23 +602,6 @@ public class QueryTreeGenerator {
         return insertNode;
     }
 
-    private Object parseValue(ParseTree value) {
-        switch (value.getType()) {
-            case INTEGER_TYPE:
-                return Integer.parseInt(value.getValue());
-            case STRING_TYPE:
-                return value.getValue();
-            case BOOLEAN_TYPE:
-                return Boolean.parseBoolean(value.getValue());
-            case DOUBLE_TYPE:
-                return Double.parseDouble(value.getValue());
-            case NULL_TYPE:
-                return null;
-            default:
-                throw new IllegalArgumentException("Unsupported value type: " + value.getType());
-        }
-    }
-
     private QueryTree generateUpdateTree(ParseTree parseTree, QueryContext queryContext) {
         // 1. Process target table
         ParseTree targetTable = findChildOfType(parseTree, ParseTreeType.TABLE_REF);
@@ -635,7 +695,7 @@ public class QueryTreeGenerator {
         // 2. Add filter if WHERE clause exists
         ParseTree whereClause = findChildOfType(parseTree, ParseTreeType.WHERE_CLAUSE);
         if (whereClause != null) {
-            QueryPredicate predicate = generatePredicate(whereClause.getChild(0), queryContext);
+            Expression predicate = generatePredicate(whereClause.getChild(0), queryContext);
             result = optimizeAccessPath(result, predicate, queryContext);
         }
 

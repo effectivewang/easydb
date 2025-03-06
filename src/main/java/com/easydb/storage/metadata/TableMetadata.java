@@ -20,8 +20,8 @@ public class TableMetadata {
     private final List<Constraint> constriants;
     private final Instant createdAt;
     private final Instant lastAccessedAt;
-    private final long rowCount;
-    private final long sizeInBytes;
+    private long rowCount;
+    private long sizeInBytes;
 
     public TableMetadata(String tableName, List<Column> columns, Map<String, IndexMetadata> indexes,List<Constraint> constraints) {
         this(tableName, columns, indexes, constraints, Instant.now(), Instant.now(), 0, 0);
@@ -136,6 +136,9 @@ public class TableMetadata {
         return columns.indexOf(getColumn(columnName));
     }
     
+    public void setEstimatedRows(long estimatedRows) {
+        this.rowCount = estimatedRows;
+    }
     
     public boolean hasColumn(String columnName) {
         return columns.stream()
@@ -164,6 +167,10 @@ public class TableMetadata {
 
     public IndexMetadata getIndex(String columnName) {
         return indexes.get(columnName);
+    }
+
+    public long estimatedRows() {
+        return rowCount;
     }
 
     public String toString() {

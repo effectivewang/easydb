@@ -3,7 +3,6 @@ package com.easydb.sql.executor;
 import com.easydb.storage.Storage;
 import com.easydb.storage.Tuple;
 import com.easydb.sql.planner.QueryTree;
-import com.easydb.sql.planner.QueryPredicate;
 import com.easydb.sql.planner.operation.InsertOperation;
 import com.easydb.sql.planner.operation.SequentialScanOperation;
 import com.easydb.sql.planner.operation.IndexScanOperation;
