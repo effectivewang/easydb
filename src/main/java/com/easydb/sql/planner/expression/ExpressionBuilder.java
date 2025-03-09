@@ -152,14 +152,14 @@ public class ExpressionBuilder {
 
         return switch (operator.getType()) {
             case AND_OPERATOR -> new Expression(
-                ExpressionType.AND,
-                "AND",
+                ExpressionType.LOGICAL,
+                Expression.Operator.AND,
                 left,
                 right
             );
             case OR_OPERATOR -> new Expression(
-                ExpressionType.OR,
-                "OR",
+                ExpressionType.LOGICAL,
+                Expression.Operator.OR,
                 left,
                 right
             );
@@ -173,18 +173,18 @@ public class ExpressionBuilder {
         ParseTree operator = comparison.getChild(1);
         Expression right = build(comparison.getChild(2), rangeTable);
 
-        ExpressionType op = switch (operator.getType()) {
-            case EQUALS_OPERATOR -> ExpressionType.EQUALS;
-            case NOT_EQUALS_OPERATOR -> ExpressionType.NOT_EQUALS;
-            case GREATER_THAN_OPERATOR -> ExpressionType.GREATER_THAN;
-            case LESS_THAN_OPERATOR -> ExpressionType.LESS_THAN;
-            case GREATER_THAN_EQUALS_OPERATOR -> ExpressionType.GREATER_EQUAL;
-            case LESS_THAN_EQUALS_OPERATOR -> ExpressionType.LESS_EQUAL;
+        Expression.Operator op = switch (operator.getType()) {
+            case EQUALS_OPERATOR -> Expression.Operator.EQUALS;
+            case NOT_EQUALS_OPERATOR -> Expression.Operator.NOT_EQUALS;
+            case GREATER_THAN_OPERATOR -> Expression.Operator.GREATER_THAN;
+            case LESS_THAN_OPERATOR -> Expression.Operator.LESS_THAN;
+            case GREATER_THAN_EQUALS_OPERATOR -> Expression.Operator.GREATER_EQUAL;
+            case LESS_THAN_EQUALS_OPERATOR -> Expression.Operator.LESS_EQUAL;
             default -> throw new IllegalStateException(
                 "Unknown comparison operator: " + operator.getType());
         };
 
-        return Expression.comparison(op, left, right);
+        return new Expression(ExpressionType.COMPARISON, op, left, right);
     }
 
     private static void processColumnRef(

@@ -5,7 +5,7 @@ import com.easydb.storage.Tuple;
 import com.easydb.sql.executor.QueryExecutorState;
 import com.easydb.sql.executor.PlanExecutor;
 import com.easydb.sql.planner.operation.FilterOperation;
-import com.easydb.sql.executor.PredicateEvaluator;
+import com.easydb.sql.executor.ExpressionEvaluator;
 
 import java.util.List;
 import java.util.Optional;
@@ -46,8 +46,8 @@ public class FilterExecutor implements PlanExecutor {
             // Get values for predicate evaluation
             List<Object> values = tuple.get().getValues();
             // Evaluate predicate
-            if (PredicateEvaluator.evaluate(
-                    operation.getPredicate(),
+            if (ExpressionEvaluator.evaluate(
+                    operation.getExpression(),
                     values,
                     operation.getRangeTableEntry())) {
                 return tuple;

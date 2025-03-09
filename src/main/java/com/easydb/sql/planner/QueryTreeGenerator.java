@@ -396,10 +396,10 @@ public class QueryTreeGenerator {
         return join;
     }
 
-    private QueryTree addFilter(QueryTree input, Expression predicate, QueryContext queryContext) {
+    private QueryTree addFilter(QueryTree input, Expression expression, QueryContext queryContext) {
         QueryTree filter = new QueryTree(
             QueryOperator.FILTER,
-            new FilterOperation(predicate, input.getRangeTable().get(0)),
+            new FilterOperation(expression, input.getRangeTable().get(0)),
             input.getOutputColumns(),
             input.getRangeTable()
         );

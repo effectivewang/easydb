@@ -15,18 +15,10 @@ public class ExpressionEvaluator {
             case ARITHMETIC -> evaluateArithmetic(expr, tuple);
             
             // Logical operators
-            case AND -> evaluateAnd(expr, tuple);
-            case OR -> evaluateOr(expr, tuple);
-            case NOT -> !((Boolean) evaluate(expr.getLeft(), tuple));
+            case LOGICAL -> evaluateLogical(expr, tuple);
             
             // Comparisons
-            case EQUALS -> evaluateComparison(expr, tuple, Objects::equals);
-            case NOT_EQUALS -> !evaluateComparison(expr, tuple, Objects::equals);
-            case LESS_THAN -> evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) < 0);
-            case GREATER_THAN -> evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) > 0);
-            case LESS_EQUAL -> evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) <= 0);
-            case GREATER_EQUAL -> evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) >= 0);
-            
+            case COMPARISON -> evaluateComparison(expr, tuple);
             default -> throw new IllegalArgumentException("Unsupported expression type: " + expr.getType());
         };
     }
@@ -42,17 +34,40 @@ public class ExpressionEvaluator {
         return tuple.getValue(columnName);
     }
 
-    private static Boolean evaluateAnd(Expression expr, Tuple tuple) {
-        // Short-circuit evaluation
-        return (Boolean) evaluate(expr.getLeft(), tuple) && 
-               (Boolean) evaluate(expr.getRight(), tuple);
+    private static Boolean evaluateLogical(Expression expr, Tuple tuple) {
+        switch (expr.getOperator()) {
+            case AND:
+                return (Boolean) evaluate(expr.getLeft(), tuple) && 
+                       (Boolean) evaluate(expr.getRight(), tuple);
+            case OR:
+                return (Boolean) evaluate(expr.getLeft(), tuple) || 
+                       (Boolean) evaluate(expr.getRight(), tuple);
+            case NOT:
+                return !((Boolean) evaluate(expr.getLeft(), tuple));
+            default:
+                throw new IllegalArgumentException("Unsupported logical operator: " + expr.getOperator());
+        }
     }
 
-    private static Boolean evaluateOr(Expression expr, Tuple tuple) {
-        // Short-circuit evaluation
-        return (Boolean) evaluate(expr.getLeft(), tuple) || 
-               (Boolean) evaluate(expr.getRight(), tuple);
+    private static Boolean evaluateComparison(Expression expr, Tuple tuple) {
+        switch (expr.getOperator()) {
+            case EQUALS:
+                return evaluateComparison(expr, tuple, Objects::equals);
+            case NOT_EQUALS:
+                return !evaluateComparison(expr, tuple, Objects::equals);
+            case LESS_THAN:
+                return evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) < 0);
+            case GREATER_THAN:
+                return evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) > 0);
+            case LESS_EQUAL:
+                return evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) <= 0);
+            case GREATER_EQUAL:
+                return evaluateComparison(expr, tuple, (l, r) -> compareValues(l, r) >= 0);
+            default:
+                throw new IllegalArgumentException("Unsupported comparison operator: " + expr.getOperator());
+        }
     }
+    
 
     private static Boolean evaluateComparison(Expression expr, Tuple tuple, 
                                             ComparisonFunction comp) {
@@ -82,10 +97,6 @@ public class ExpressionEvaluator {
             case DIVIDE -> {
                 if (r.doubleValue() == 0) throw new ArithmeticException("Division by zero");
                 yield l.doubleValue() / r.doubleValue();
-            }
-            case MODULO -> {
-                if (r.doubleValue() == 0) throw new ArithmeticException("Division by zero");
-                yield l.doubleValue() % r.doubleValue();
             }
             default -> throw new IllegalArgumentException("Unknown arithmetic operator: " + expr.getOperator());
         };

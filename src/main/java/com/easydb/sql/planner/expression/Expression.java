@@ -99,7 +99,6 @@ public class Expression {
             case ARITHMETIC -> "(" + left + " " + operator + " " + right + ")";
             case COMPARISON -> "(" + left + " " + operator + " " + right + ")";
             case LOGICAL -> "(" + left + " " + operator + " " + right + ")";
-            case NOT -> "NOT (" + left + ")";
             default -> throw new IllegalStateException("Unknown expression type: " + type);
         };
     }
@@ -144,7 +143,7 @@ public class Expression {
     }
 
     public static Expression not(Expression operand) {
-        return new Expression(ExpressionType.NOT, null, operand, null);
+        return new Expression(ExpressionType.LOGICAL, Operator.NOT, operand, null);
     }
 
     public static Expression function(String name, List<Expression> arguments) {
@@ -158,7 +157,6 @@ public class Expression {
         ARITHMETIC,
         COMPARISON,
         LOGICAL,
-        NOT
     }
 
     public enum Operator {
@@ -178,7 +176,8 @@ public class Expression {
         
         // Logical operators
         AND("AND"),
-        OR("OR");
+        OR("OR"),
+        NOT("NOT");
 
         private final String symbol;
 

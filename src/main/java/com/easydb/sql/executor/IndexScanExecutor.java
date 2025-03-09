@@ -54,9 +54,9 @@ public class IndexScanExecutor implements PlanExecutor {
             // Apply any additional filter predicates
             List<Object> values = tuple.getValues();
 
-            if (operation.getPredicate() == null || 
-                PredicateEvaluator.evaluate(
-                    operation.getPredicate(), 
+            if (operation.getExpression() == null || 
+                ExpressionEvaluator.evaluate(
+                    operation.getExpression(), 
                     values,
                     operation.getRangeTableEntry())) {
                 return Optional.of(tuple);
